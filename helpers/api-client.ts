@@ -252,4 +252,70 @@ export class UmbrellaApiClient {
     const body = await res.json() as { page?: Array<{ id: string; name: string }> };
     return body.page || [];
   }
+
+  // ── Commitment Dashboard (FinOps commitments) ────────────────
+
+  async getCommitmentDashboard(params: Record<string, string>): Promise<Record<string, unknown>> {
+    const res = await this.context.get('/commitment/dashboard', { params });
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  // ── Anomaly Detection list ──────────────────────────────────
+
+  async getAnomalyDetectionList(params: Record<string, string>): Promise<Array<Record<string, unknown>>> {
+    const res = await this.context.get('/anomaly-detection', { params });
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Array<Record<string, unknown>>>;
+  }
+
+  async getAnomalyAlertRules(): Promise<Array<Record<string, unknown>>> {
+    const res = await this.context.get('/anomaly-detection/rules');
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Array<Record<string, unknown>>>;
+  }
+
+  // ── Recommendations list (detailed) ─────────────────────────
+
+  async getRecommendationsList(): Promise<Record<string, unknown>> {
+    const res = await this.context.post('/recommendationsNew/list', {
+      data: {
+        pageNumber: 1,
+        pageSize: 10,
+        sort: { property: 'annualSavings', direction: 'desc' },
+      },
+    });
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  // ── Tag Governance coverage ─────────────────────────────────
+
+  async getTagGovernanceCoverage(): Promise<Record<string, unknown>> {
+    const res = await this.context.get('/tag-governance/coverage');
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  async getTagGovernanceResources(params: Record<string, string>): Promise<Record<string, unknown>> {
+    const res = await this.context.post('/tag-governance/resources', { data: params });
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  // ── Alerts / Alert Rules ────────────────────────────────────
+
+  async getCostAlertRules(): Promise<Record<string, unknown>> {
+    const res = await this.context.get('/alerts/rules');
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  // ── Partner Billing Summary ─────────────────────────────────
+
+  async getBillingSummary(params: Record<string, string>): Promise<Record<string, unknown>> {
+    const res = await this.context.get('/partner/billing-summary', { params });
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
+  }
 }
