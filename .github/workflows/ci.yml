@@ -1,0 +1,102 @@
+name: CI - Playwright Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  BASE_URL: https://dev.umbrellacost.dev
+  API_URL: https://api.dev.umbrellacost.dev/api/v1
+
+jobs:
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run API Tests
+        run: npm run test:api
+        env:
+          USER_EMAIL: ${{ secrets.USER_EMAIL }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          BASE_URL: ${{ vars.BASE_URL || env.BASE_URL }}
+          API_URL: ${{ vars.API_URL || env.API_URL }}
+
+      - name: Upload API test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-api
+          path: playwright-report/
+          retention-days: 7
+
+  test-ui:
+    name: UI Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run UI Tests
+        run: npm run test:ui
+        env:
+          USER_EMAIL: ${{ secrets.USER_EMAIL }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          BASE_URL: ${{ vars.BASE_URL || env.BASE_URL }}
+          API_URL: ${{ vars.API_URL || env.API_URL }}
+
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-ui
+          path: playwright-report/
+          retention-days: 7
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npx tsc --noEmit

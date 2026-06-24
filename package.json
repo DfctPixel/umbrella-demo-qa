@@ -1,0 +1,18 @@
+{
+  "name": "umbrella-demo-qa",
+  "version": "1.0.0",
+  "description": "Playwright E2E test project for Umbrella FinOps platform",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:api": "npx playwright test --grep @api",
+    "test:ui": "npx playwright test --grep @ui",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
