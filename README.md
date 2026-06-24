@@ -6,7 +6,7 @@ End-to-end test suite for the [Umbrella FinOps platform](https://dev.umbrellacos
 
 - **API Tests** — Direct API testing against `https://api.dev.umbrellacost.dev/api/v1`
   - Authentication flow (JWT token acquisition, token verification, error handling)
-  - Cost & Usage Explorer endpoints (services, costs, budgets, dashboards, anomalies, etc.)
+  - Cost & Usage Explorer endpoints (services, costs, budgets, anomalies, commitments, recommendations, K8s data, dashboard panels)
 - **UI Tests** — Browser-based E2E testing at `https://dev.umbrellacost.dev`
   - Login flow (valid credentials, empty fields, forgot password navigation)
   - Dashboard navigation and cost data display
@@ -19,21 +19,24 @@ End-to-end test suite for the [Umbrella FinOps platform](https://dev.umbrellacos
 ```
 ├── helpers/
 │   ├── auth.ts                      # Authentication helper (native fetch for JWT)
-│   └── api-client.ts                # Typed API client wrapper
+│   └── api-client.ts                # Typed API client wrapper with FinOps response interfaces
 ├── pages/
+│   ├── BasePage.ts                  # Abstract base class with shared navigation/element utilities
 │   ├── LoginPage.ts                 # Login page object model
 │   ├── DashboardPage.ts             # Dashboard page object model
 │   └── CostUsageExplorerPage.ts     # Cost & Usage Explorer page object model
 ├── tests/
 │   ├── api/
 │   │   ├── auth.spec.ts             # API authentication tests
-│   │   └── cost-usage.spec.ts       # API cost & usage data tests
+│   │   └── cost-usage.spec.ts       # API cost & usage data tests (11 test cases)
 │   └── ui/
 │       ├── login.spec.ts            # UI login flow tests
 │       ├── cost-usage.spec.ts       # UI Cost & Usage Explorer tests
 │       └── console-errors.spec.ts   # Console/network error monitoring
 ├── .github/workflows/ci.yml         # CI pipeline
+├── eslint.config.mjs                # ESLint configuration
 ├── playwright.config.ts             # Playwright configuration
+├── tsconfig.json                    # TypeScript configuration
 └── package.json                     # Dependencies and scripts
 ```
 
@@ -79,6 +82,12 @@ npm run test:debug
 
 # View HTML test report
 npm run report
+
+# TypeScript type check
+npx tsc --noEmit
+
+# ESLint check
+npm run lint
 ```
 
 ### Filtering by test name
@@ -94,12 +103,25 @@ npx playwright test --grep "@api"
 
 ## Test Suites
 
-### API Tests (13 tests)
+### API Tests (11 tests)
 
-| Suite | File | Description |
-|---|---|---|
-| Auth | `tests/api/auth.spec.ts` | JWT authentication, token verification, negative password test, protected endpoint access |
-| Cost & Usage | `tests/api/cost-usage.spec.ts` | Service names, costs, CAUI queries, cue views, recommendations, anomaly stats, budgets, dashboards |
+| Suite | Test Name | FinOps Domain | Description |
+|---|---|---|---|
+| Auth | `should successfully authenticate and receive JWT + refresh tokens` | — | JWT token acquisition and payload validation |
+| Auth | `should verify identity via signin-with-token` | — | Post-authentication identity verification |
+| Auth | `should reject signin with wrong password (negative)` | — | Negative test for invalid credentials |
+| Auth | `should access protected endpoints with valid JWT` | — | Verify JWT grants access to protected endpoints |
+| Cost & Usage | `should fetch distinct service names` | **Cost Allocation** | Service name enumeration |
+| Cost & Usage | `should fetch distinct service costs with non-negative values` | **Cost Allocation** | Cost sanity check (non-negative per service) |
+| Cost & Usage | `should post CAUI query (monthly granularity)` | **Cost Mgmt** | Monthly cost aggregation query |
+| Cost & Usage | `should post CAUI query (daily granularity)` | **Cost Mgmt** | Daily cost aggregation query |
+| Cost & Usage | `should fetch anomaly stats with non-negative counts` | **Anomalies** | Anomaly detection data validation |
+| Cost & Usage | `should fetch budgets list with valid structure` | **Budgets** | Budget metadata validation |
+| Cost & Usage | `should fetch commitment utilization summary` | **Commitments** | Savings Plans utilization |
+| Cost & Usage | `should fetch commitment total savings for Savings Plans and RIs` | **Commitments** | YTD savings from SP + RI |
+| Cost & Usage | `should fetch recommendations total count and categories` | **Optimization** | Recommendations data validation |
+| Cost & Usage | `should fetch K8s cost data with non-negative values` | **Containers** | K8s workload cost visibility |
+| Cost & Usage | `should fetch custom dashboard panels with valid structure` | **Reporting** | Dashboard panel/KPI widget validation |
 
 ### UI Tests (9 tests)
 
@@ -126,12 +148,13 @@ Key configuration in `playwright.config.ts`:
 | Setting | Value |
 |---|---|
 | `baseURL` | `https://dev.umbrellacost.dev` |
-| `apiURL` | `https://api.dev.umbrellacost.dev/api/v1` |
 | Timeout | 60 seconds |
 | Trace | `on-first-retry` |
 | Screenshot | `only-on-failure` |
 | Video | `retain-on-failure` |
 | Viewport (UI) | 1920×1080 |
+
+The API base URL is configured via the `API_URL` environment variable (default: `https://api.dev.umbrellacost.dev/api/v1`).
 
 ## CI/CD
 
@@ -143,10 +166,11 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs three parallel job
 
 ## Page Objects
 
-The project uses the Page Object Model pattern for UI tests:
+The project uses the Page Object Model pattern extending a shared `BasePage`:
 
+- **`BasePage`** — Abstract base class with `navigate()`, `waitForLoadState()`, `waitForUrl()`, `clickVisible()`, `fillVisible()`, `getTextContent()` etc.
 - **`LoginPage`** — Email/password input, Next/Login buttons, forgot password link
-- **`DashboardPage`** — MTD cost, forecast, savings cards, sidebar navigation
+- **`DashboardPage`** — MTD cost, forecast, savings cards, sidebar navigation to Cost & Usage Explorer
 - **`CostUsageExplorerPage`** — Total cost, service search, filter controls, service list
 
 ## Environment Variables
@@ -158,4 +182,32 @@ See `.env.example` for the required environment variables:
 | `USER_EMAIL` | Login email for the Umbrella platform |
 | `USER_PASSWORD` | Login password |
 | `BASE_URL` | UI base URL (default: `https://dev.umbrellacost.dev`) |
-| `API_BASE_URL` | API base URL (default: `https://api.dev.umbrellacost.dev/api/v1`) |
+| `API_URL` | API base URL (default: `https://api.dev.umbrellacost.dev/api/v1`) |
+
+## Manual Test Scenarios
+
+The following FinOps features are covered by automated tests at the API/read level but would benefit from **manual exploratory testing** for deeper validation:
+
+| Area | Manual Test Ideas | Why Manual? |
+|---|---|---|
+| **Budgets CRUD** | Create a new budget with custom filters, verify alert triggers when cost approaches threshold, edit budget amount, delete budget | Requires write operations and UI interaction with budget lifecycle |
+| **Commitment Contracts** | Navigate through My Commitments list, verify SP/RI contract details, check expiration dates, test coverage gap analysis | UI interactions with contract tables/charts, visual verification |
+| **Anomaly Alert Config** | Configure anomaly detection thresholds, create alert rules, verify alert notifications appear on dashboard | Complex multi-step configuration flows |
+| **Cost Allocation** | Explore Business Mapping, create/verify tag groups, test Filter Group logic with AND/OR conditions | Write operations + visual verification of allocation logic |
+| **Recommendations** | Apply a recommendation (e.g., Right Sizing), verify cost impact, test Waste Detector filters | Write operations with financial impact validation |
+| **Partner Billing** | Navigate Billing Summary/History, verify customer management, test Credits flow | Partner-specific features requiring multi-account context |
+| **CostGPT** | Test natural language queries about cost data, verify response accuracy | Conversational AI with non-deterministic responses |
+| **Pricing Pages** | Navigate Pricing menu, verify cost type and pricing mode toggles | Visual verification of pricing data presentation |
+| **Export/Download** | Export CAUI data to CSV, download dashboard reports | File download handling |
+
+## Known Gaps
+
+| Gap | Impact | Future Priority |
+|---|---|---|
+| No budget write (create/edit/delete) tests | Cannot validate budget lifecycle end-to-end | **HIGH** |
+| No commitment contract/coverage gap tests | Cannot validate commitment optimization suggestions | **HIGH** |
+| No Cost Allocation / Tag Governance tests | Cannot validate cost allocation accuracy | **HIGH** |
+| No recommendations "apply" or approval workflow tests | Cannot validate cost optimization impact | **MEDIUM** |
+| No UI page objects for Budget, Commitment, Anomaly pages | UI coverage limited to Login, Dashboard, CAUI | **MEDIUM** |
+| No negative data validation (zero/negative costs) | Edge cases for data quality not covered | **LOW** |
+| No performance/timing tests | SLA violations not detected | **LOW** |

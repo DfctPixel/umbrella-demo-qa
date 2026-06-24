@@ -63,6 +63,20 @@ export interface CommitmentSummaryResponse {
   [key: string]: unknown;
 }
 
+export interface CommitmentSavingsResponse {
+  totalCommitment?: number;
+  [key: string]: unknown;
+}
+
+export interface PanelResponse {
+  uuid?: string;
+  name?: string;
+  type?: string;
+  route?: string;
+  displayStatus?: string;
+  [key: string]: unknown;
+}
+
 export interface DashboardResponse {
   id?: string;
   name?: string;
@@ -168,6 +182,17 @@ export class UmbrellaApiClient {
     return res.json() as Promise<CommitmentSummaryResponse>;
   }
 
+  // ── Commitment savings (FinOps core) ─────────────────────────
+
+  async getCommitmentTotalSavings(commitmentType: string, dates: string[]): Promise<CommitmentSavingsResponse> {
+    const qs = dates.map((d) => `dates=${encodeURIComponent(d)}`).join('&');
+    const res = await this.context.get(
+      `/commitment/utilization/totalsavings?commitmentType=${commitmentType}&${qs}`,
+    );
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<CommitmentSavingsResponse>;
+  }
+
   // ── Dashboard / Custom ───────────────────────────────────────
 
   async getDefaultDashboard(): Promise<DashboardResponse> {
@@ -182,9 +207,49 @@ export class UmbrellaApiClient {
     return res.json() as Promise<DashboardResponse[]>;
   }
 
+  async getPanels(): Promise<PanelResponse[]> {
+    const res = await this.context.get('/usage/custom-dashboard/panels');
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<PanelResponse[]>;
+  }
+
   async getChannels(): Promise<Record<string, unknown>> {
     const res = await this.context.get('/channels');
     expect(res.ok()).toBeTruthy();
     return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  // ── K8s cost data ────────────────────────────────────────────
+
+  async getDistinctK8sCosts(): Promise<DistinctServiceCostsResponse> {
+    const res = await this.context.get('/invoices/service-costs/distinct-k8s');
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<DistinctServiceCostsResponse>;
+  }
+
+  // ── Tag cost data ────────────────────────────────────────────
+
+  async getDistinctTagCosts(): Promise<DistinctServiceCostsResponse> {
+    const res = await this.context.get('/invoices/service-costs/distinct-tags');
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<DistinctServiceCostsResponse>;
+  }
+
+  // ── Recommendations total count ──────────────────────────────
+
+  async getRecommendationsTotal(): Promise<number> {
+    const res = await this.context.post('/recommendationsNew/list/total', { data: {} });
+    expect(res.ok()).toBeTruthy();
+    const text = await res.text();
+    return parseInt(text, 10);
+  }
+
+  // ── Recommendations heatmap dynamic filter categories ────────
+
+  async getRecommendationCategories(): Promise<Array<{ id: string; name: string }>> {
+    const res = await this.context.post('/recommendationsNew/heatmap/dynamicFilter/cat_id', { data: {} });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json() as { page?: Array<{ id: string; name: string }> };
+    return body.page || [];
   }
 }

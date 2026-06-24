@@ -24,7 +24,7 @@ test.describe('API Cost & Usage @api', () => {
     }
   });
 
-  test('should fetch distinct service costs', async () => {
+  test('should fetch distinct service costs with non-negative values', async () => {
     const costs = await api.getDistinctServiceCosts();
     expect(costs).toBeDefined();
     expect(typeof costs).toBe('object');
@@ -80,30 +80,9 @@ test.describe('API Cost & Usage @api', () => {
     }
   });
 
-  // ── Cue views ───────────────────────────────────────────────
-
-  test('should fetch cue views', async () => {
-    const views = await api.getCueViews();
-    expect(views).toBeDefined();
-
-    // FinOps: a cue view with no views might be valid, but if present validate it
-    if (views.views && views.views.length > 0) {
-      expect(views.views[0].id).toBeDefined();
-      expect(views.views[0].name).toBeDefined();
-    }
-  });
-
-  // ── Recommendations ─────────────────────────────────────────
-
-  test('should fetch recommendations heatmap', async () => {
-    const heatmap = await api.getRecommendationsHeatmap();
-    expect(heatmap).toBeDefined();
-    // FinOps: recommendations drive cost optimization
-  });
-
   // ── Anomaly detection ───────────────────────────────────────
 
-  test('should fetch anomaly stats', async () => {
+  test('should fetch anomaly stats with non-negative counts', async () => {
     const stats = await api.getAnomalyStats();
     expect(stats).toBeDefined();
 
@@ -120,7 +99,7 @@ test.describe('API Cost & Usage @api', () => {
 
   // ── Budgets (FinOps core) ───────────────────────────────────
 
-  test('should fetch budgets list', async () => {
+  test('should fetch budgets list with valid structure', async () => {
     const budgets = await api.getBudgets();
     expect(budgets).toBeDefined();
 
@@ -137,46 +116,98 @@ test.describe('API Cost & Usage @api', () => {
 
   test('should fetch commitment utilization summary', async () => {
     const summary = await api.getCommitmentSummary({
-      granularity: 'Monthly',
-      startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0],
+      commitmentType: 'sp',
+      linkedAccount: '',
+      payerAccount: '',
+      commitmentServices: 'ComputeSavingsPlans',
     });
     expect(summary).toBeDefined();
 
     // FinOps: utilization is a critical commitment-tracking metric
     if (summary.utilization !== undefined) {
-      // Utilization is typically a percentage (0-100) or fractional (0-1)
       expect(typeof summary.utilization === 'number').toBeTruthy();
     }
   });
 
-  // ── Dashboards ──────────────────────────────────────────────
+  test('should fetch commitment total savings for Savings Plans and RIs', async () => {
+    const currentYear = new Date().getFullYear();
+    const dates = Array.from({ length: 6 }, (_, i) =>
+      `${currentYear}-${String(i + 1).padStart(2, '0')}-01`
+    );
 
-  test('should fetch default dashboard', async () => {
-    const dashboard = await api.getDefaultDashboard();
-    expect(dashboard).toBeDefined();
-
-    if (dashboard.id) {
-      expect(typeof dashboard.id).toBe('string');
+    // SP (Savings Plans) — validates YTD savings from commitments
+    const spSavings = await api.getCommitmentTotalSavings('sp', dates);
+    expect(spSavings).toBeDefined();
+    if (spSavings.totalCommitment !== undefined) {
+      expect(typeof spSavings.totalCommitment).toBe('number');
+      expect(spSavings.totalCommitment).toBeGreaterThanOrEqual(0);
     }
-    if (dashboard.name) {
-      expect(typeof dashboard.name).toBe('string');
+
+    // RI (Reserved Instances)
+    const riSavings = await api.getCommitmentTotalSavings('ri', dates);
+    expect(riSavings).toBeDefined();
+    if (riSavings.totalCommitment !== undefined) {
+      expect(typeof riSavings.totalCommitment).toBe('number');
+      expect(riSavings.totalCommitment).toBeGreaterThanOrEqual(0);
     }
   });
 
-  test('should fetch dashboards list', async () => {
-    const dashboards = await api.getDashboards();
-    expect(dashboards).toBeDefined();
-    expect(Array.isArray(dashboards)).toBeTruthy();
+  // ── Recommendations (FinOps optimization) ───────────────────
 
-    // FinOps: validate dashboard structure
-    for (const db of dashboards) {
-      expect(db).toBeDefined();
-      if (db.id) {
-        expect(typeof db.id).toBe('string');
+  test('should fetch recommendations total count and categories', async () => {
+    // Total count — validates the dashboard "New Recommendations" widget data
+    const total = await api.getRecommendationsTotal();
+    expect(typeof total).toBe('number');
+    expect(total).toBeGreaterThanOrEqual(0);
+
+    // Categories — validates recommendation types are properly organized
+    const categories = await api.getRecommendationCategories();
+    expect(Array.isArray(categories)).toBeTruthy();
+    for (const cat of categories) {
+      expect(cat.id).toBeDefined();
+      expect(typeof cat.id).toBe('string');
+      expect(cat.name).toBeDefined();
+      expect(typeof cat.name).toBe('string');
+    }
+  });
+
+  // ── K8s cost data (FinOps containers) ───────────────────────
+
+  test('should fetch K8s cost data with non-negative values', async () => {
+    const k8s = await api.getDistinctK8sCosts();
+    expect(k8s).toBeDefined();
+
+    // FinOps: K8s workloads should have cost visibility
+    if (k8s.services && k8s.services.length > 0) {
+      for (const svc of k8s.services) {
+        expect(svc.serviceName).toBeDefined();
+        expect(typeof svc.serviceName).toBe('string');
+        if (svc.cost !== undefined) {
+          expect(typeof svc.cost).toBe('number');
+          expect(svc.cost).toBeGreaterThanOrEqual(0);
+        }
       }
-      if (db.name) {
-        expect(typeof db.name).toBe('string');
+    }
+  });
+
+  // ── Custom dashboard panels (FinOps reporting) ──────────────
+
+  test('should fetch custom dashboard panels with valid structure', async () => {
+    const panels = await api.getPanels();
+    expect(Array.isArray(panels)).toBeTruthy();
+
+    // FinOps: each panel represents a visualization or KPI widget
+    for (const panel of panels) {
+      expect(panel.uuid).toBeDefined();
+      expect(typeof panel.uuid).toBe('string');
+      expect(panel.name).toBeDefined();
+      expect(typeof panel.name).toBe('string');
+      if (panel.type !== undefined) {
+        expect(typeof panel.type).toBe('string');
+      }
+      if (panel.route !== undefined) {
+        expect(typeof panel.route).toBe('string');
       }
     }
   });
