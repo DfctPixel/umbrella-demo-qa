@@ -138,7 +138,7 @@ npx playwright test --grep "@api"
 | Advanced FinOps | `should fetch cost alert rules` | **Alerts** | Cost alert configuration |
 | Advanced FinOps | `should fetch partner billing summary` | **Partner Billing** | Partner billing summary with pagination |
 
-### UI Tests (12+ tests)
+### UI Tests (10+ tests)
 
 | Suite | File | Description |
 |---|---|---|
