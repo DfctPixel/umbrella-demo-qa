@@ -1,6 +1,7 @@
 import { Page, Locator } from '@playwright/test';
+import { BasePage } from './BasePage';
 
-export class LoginPage {
+export class LoginPage extends BasePage {
   readonly emailInput: Locator;
   readonly passwordInput: Locator;
   readonly nextButton: Locator;
@@ -8,33 +9,34 @@ export class LoginPage {
   readonly forgotPasswordLink: Locator;
   readonly registerLink: Locator;
 
-  constructor(public readonly page: Page) {
-    this.emailInput = page.locator('[placeholder="sam@company.com"]');
-    this.passwordInput = page.locator('[placeholder="8 Characters minimum"]');
-    this.nextButton = page.locator('button:has-text("Next")');
-    this.loginButton = page.locator('button:has-text("Login")');
-    this.forgotPasswordLink = page.locator('button:has-text("Forgot password")');
-    this.registerLink = page.locator('a:has-text("Register")');
+  constructor(page: Page) {
+    super(page);
+    this.emailInput = page.getByPlaceholder('sam@company.com');
+    this.passwordInput = page.getByPlaceholder('8 Characters minimum');
+    this.nextButton = page.getByRole('button', { name: 'Next' });
+    this.loginButton = page.getByRole('button', { name: 'Login' });
+    this.forgotPasswordLink = page.getByRole('button', { name: 'Forgot password' });
+    this.registerLink = page.getByRole('link', { name: 'Register' });
   }
 
   async goto() {
-    await this.page.goto('/log_in');
+    await this.navigate('/log_in');
   }
 
   async fillEmail(email: string) {
-    await this.emailInput.fill(email);
+    await this.fillVisible(this.emailInput, email);
   }
 
   async clickNext() {
-    await this.nextButton.click();
+    await this.clickVisible(this.nextButton);
   }
 
   async fillPassword(password: string) {
-    await this.passwordInput.fill(password);
+    await this.fillVisible(this.passwordInput, password);
   }
 
   async clickLogin() {
-    await this.loginButton.click();
+    await this.clickVisible(this.loginButton);
   }
 
   async login(email: string, password: string) {

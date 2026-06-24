@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
 
 export default defineConfig({
   testDir: './tests',
@@ -17,7 +16,6 @@ export default defineConfig({
   },
   use: {
     baseURL: process.env.BASE_URL || 'https://dev.umbrellacost.dev',
-    apiURL: process.env.API_URL || 'https://api.dev.umbrellacost.dev/api/v1',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

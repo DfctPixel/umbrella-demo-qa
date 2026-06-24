@@ -1,6 +1,7 @@
 import { Page, Locator } from '@playwright/test';
+import { BasePage } from './BasePage';
 
-export class CostUsageExplorerPage {
+export class CostUsageExplorerPage extends BasePage {
   readonly heading: Locator;
   readonly totalCost: Locator;
   readonly groupByService: Locator;
@@ -13,8 +14,9 @@ export class CostUsageExplorerPage {
   readonly applyButton: Locator;
   readonly showK8sBreakdown: Locator;
 
-  constructor(public readonly page: Page) {
-    this.heading = page.locator('heading:has-text("Cost & Usage Explorer")');
+  constructor(page: Page) {
+    super(page);
+    this.heading = page.getByRole('heading', { name: /Cost & Usage Explorer/i });
     this.totalCost = page.getByText('Total Cost');
     this.groupByService = page.getByText('Group By:');
     this.groupByDate = page.getByText('By:');
@@ -28,17 +30,16 @@ export class CostUsageExplorerPage {
   }
 
   async waitForLoad() {
-    await this.page.waitForURL(/cost-usage-explorer/, { timeout: 30_000 });
+    await this.waitForUrl(/cost-usage-explorer/, { timeout: 30_000 });
     await this.totalCost.waitFor({ state: 'visible', timeout: 30_000 });
   }
 
   async getTotalCostValue(): Promise<string> {
-    const text = await this.totalCost.textContent();
-    return text || '';
+    return this.getTextContent(this.totalCost);
   }
 
   async searchService(serviceName: string) {
-    await this.searchInput.fill(serviceName);
+    await this.fillVisible(this.searchInput, serviceName);
   }
 
   async selectFirstService() {
@@ -47,11 +48,11 @@ export class CostUsageExplorerPage {
       .first()
       .getByRole('button')
       .first();
-    await firstItem.click();
+    await this.clickVisible(firstItem);
   }
 
   async getServiceCount(): Promise<number> {
-    const text = (await this.filterCount.textContent()) || '';
+    const text = await this.getTextContent(this.filterCount);
     const match = text.match(/(\d+)\/(\d+)/);
     return match ? parseInt(match[2], 10) : 0;
   }

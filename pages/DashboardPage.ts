@@ -1,6 +1,7 @@
 import { Page, Locator } from '@playwright/test';
+import { BasePage } from './BasePage';
 
-export class DashboardPage {
+export class DashboardPage extends BasePage {
   readonly mtdCost: Locator;
   readonly previousMonthCost: Locator;
   readonly forecastingCard: Locator;
@@ -12,7 +13,8 @@ export class DashboardPage {
   readonly costAndUsageMenuItem: Locator;
   readonly costAndUsageExplorerItem: Locator;
 
-  constructor(public readonly page: Page) {
+  constructor(page: Page) {
+    super(page);
     this.mtdCost = page.getByText('MTD cost');
     this.previousMonthCost = page.getByText('Previous Month Total Cost');
     this.forecastingCard = page.getByText('Forecasted Monthly Cost');
@@ -27,11 +29,11 @@ export class DashboardPage {
   }
 
   async navigateToCostAndUsageExplorer() {
-    await this.costAndUsageMenuItem.click();
+    await this.clickVisible(this.costAndUsageMenuItem);
     // Wait for the submenu item to become visible after the expand animation
     await this.costAndUsageExplorerItem.waitFor({ state: 'visible', timeout: 5_000 });
-    await this.costAndUsageExplorerItem.click();
-    await this.page.waitForURL(/cost-usage-explorer/, { timeout: 15_000 });
+    await this.clickVisible(this.costAndUsageExplorerItem);
+    await this.waitForUrl(/cost-usage-explorer/, { timeout: 15_000 });
   }
 
   async waitForDashboardLoad() {

@@ -12,6 +12,31 @@ export interface AuthTokens {
 }
 
 /**
+ * Thrown when any step in the multi-stage authentication flow fails.
+ */
+export class AuthenticationError extends Error {
+  constructor(
+    message: string,
+    public readonly step: string,
+    public readonly status?: number,
+    public readonly responseBody?: string,
+  ) {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
+/**
+ * Build the shared headers required by the Umbrella API.
+ */
+function commonHeaders(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    apikey: '-1:-1:-1',
+  };
+}
+
+/**
  * Authenticate via the API sign-in endpoint and return JWT + refresh tokens.
  *
  * Uses Node.js native fetch() for the sign-in calls instead of Playwright's
@@ -31,35 +56,49 @@ export async function authenticate(): Promise<{
   tokens: AuthTokens;
   requestContext: APIRequestContext;
 }> {
-  const commonHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-    apikey: '-1:-1:-1',
-  };
+  const headers = commonHeaders();
 
   // Step 1: Realm check (GET)
   const realmRes = await fetch(
     `${API_URL}/user-management/users/user-realm?username=${encodeURIComponent(USER_EMAIL)}`,
-    { headers: commonHeaders }
+    { headers },
   );
-  await realmRes.json(); // discard body, just need to make the call
+
+  if (!realmRes.ok) {
+    throw new AuthenticationError(
+      `Realm check failed: ${realmRes.status} ${await realmRes.text()}`,
+      'realm',
+      realmRes.status,
+    );
+  }
 
   // Step 2: SSO check – browser sends ONLY username, no password
-  await fetch(`${API_URL}/users/sso`, {
+  const ssoRes = await fetch(`${API_URL}/users/sso`, {
     method: 'POST',
-    headers: commonHeaders,
+    headers,
     body: JSON.stringify({ username: USER_EMAIL }),
   });
+
+  if (!ssoRes.ok) {
+    throw new AuthenticationError(
+      `SSO step failed: ${ssoRes.status} ${await ssoRes.text()}`,
+      'sso',
+      ssoRes.status,
+    );
+  }
 
   // Step 3: Sign in with email + password to get JWT
   const signinRes = await fetch(`${API_URL}/users/signin`, {
     method: 'POST',
-    headers: commonHeaders,
+    headers,
     body: JSON.stringify({ username: USER_EMAIL, password: USER_PASSWORD }),
   });
 
   if (!signinRes.ok) {
-    throw new Error(
-      `Authentication failed: ${signinRes.status} ${await signinRes.text()}`
+    throw new AuthenticationError(
+      `Sign-in failed: ${signinRes.status} ${await signinRes.text()}`,
+      'signin',
+      signinRes.status,
     );
   }
 
@@ -78,22 +117,17 @@ export async function authenticate(): Promise<{
 }
 
 /**
- * Create an authenticated API request context with JWT Bearer token.
- * Subsequent calls via this context will use the Bearer token.
+ * Authenticate and return both the API request context and tokens.
+ *
+ * This is a thin convenience wrapper around `authenticate()` that reuses
+ * the context created there rather than creating a second one.
  */
 export async function createAuthenticatedContext(): Promise<{
   context: APIRequestContext;
   tokens: AuthTokens;
 }> {
-  const { tokens } = await authenticate();
-  const context = await request.newContext({
-    baseURL: API_URL,
-    extraHTTPHeaders: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${tokens.jwtToken}`,
-    },
-  });
-  return { context, tokens };
+  const { tokens, requestContext } = await authenticate();
+  return { context: requestContext, tokens };
 }
 
 export { API_URL, BASE_URL, USER_EMAIL, USER_PASSWORD };
