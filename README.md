@@ -207,18 +207,18 @@ See `.env.example` for the required environment variables:
 
 The following FinOps features are covered by automated tests at the API/read level but would benefit from **manual exploratory testing** for deeper validation, or require write operations that cannot be automated with the current user permissions:
 
-| Area | Manual Test Ideas | Why Manual? | Automated Coverage |
+| Area | Manual Test Ideas | Why Manual? | Read-Only API Coverage |
 |---|---|---|---|
-| **Budgets CRUD** | Create a new budget with custom filters, verify alert triggers when cost approaches threshold, edit budget amount, delete budget | Write operation — **Create Budget button is disabled** for this user | API: budgets list (read-only). UI: verifies disabled button state |
-| **Commitment Contracts** | Navigate My Commitments list, verify SP/RI contract details, check expiration dates, test coverage gap analysis, apply a new commitment | UI interactions with contract tables/charts, requires write access | API: commitment dashboard, utilization summary, total savings. UI: Commitment Dashboard charts & tables |
-| **Anomaly Alert Config** | Configure anomaly detection thresholds, create alert rules, verify alert notifications appear on dashboard | Complex multi-step configuration flows (write) | API: anomaly list, anomaly stats, alert rules list. UI: anomaly page with real data display |
-| **Cost Allocation** | Explore Business Mapping, create/verify tag groups, test Filter Group logic with AND/OR conditions | Write operations + visual verification of allocation logic | API: distinct service costs, tag governance coverage/resources. API: tag cost data |
-| **Recommendations** | Apply a recommendation (e.g., Right Sizing), verify cost impact, test Waste Detector filters, approve/reject workflows | Write operations with financial impact validation | API: recommendations total, categories, detailed list. UI: Waste Detector navigation (explored) |
-| **Partner Billing** | Navigate Billing Summary/History, verify customer management, test Credits flow, create billing rules | Partner-specific features requiring multi-account context | API: billing summary with pagination |
-| **CostGPT** | Test natural language queries about cost data, verify response accuracy, test complex multi-step questions | Conversational AI with non-deterministic responses | Manual only — preset questions include service cost increases, EC2 analysis, forecasts |
-| **Pricing Pages** | Navigate Pricing menu, verify cost type and pricing mode toggles | Page returns 404 — feature not fully available | Manual only |
-| **Export/Download** | Export CAUI data to CSV, download dashboard reports, test Commitment Dashboard CSV exports | File download handling across multiple formats | Manual — "Export as CSV" buttons visible on Commitment Dashboard |
-| **Alerts** | Create Cost Alert Rules (trend/threshold), test Commitment Expiration alerts, verify alert triggers | Write operations — "Create Alert Rule" button visible, 0 existing rules | API: cost alert rules list (read-only) |
+| **Budgets CRUD** | Create a new budget with custom filters, verify alert triggers when cost approaches threshold, edit budget amount, delete budget | Write operation — **Create Budget button is disabled** for this user | Budgets list (read-only) |
+| **Commitment Contracts** | Apply a new commitment, modify existing SP/RI terms, test coverage gap analysis with write actions | Write operations (modify/apply commitments) | Commitment dashboard KPIs, utilization summary, total savings |
+| **Anomaly Alert Config** | Configure anomaly detection thresholds, create alert rules, verify alert notifications appear on dashboard | Complex multi-step configuration flows (write) | Anomaly list, anomaly stats, alert rules list |
+| **Cost Allocation** | Explore Business Mapping, create/verify tag groups, test Filter Group logic with AND/OR conditions | Write operations + visual verification of allocation logic | Distinct service costs, tag governance coverage/resources, tag cost data |
+| **Recommendations** | Apply a recommendation (e.g., Right Sizing), verify cost impact, test Waste Detector filters, approve/reject workflows | Write operations with financial impact validation | Recommendations total, categories, detailed list |
+| **Partner Billing** | Navigate Billing Summary/History, verify customer management, test Credits flow, create billing rules | Partner-specific features requiring multi-account context | Billing summary with pagination |
+| **CostGPT** | Test natural language queries about cost data, verify response accuracy, test complex multi-step questions | Conversational AI with non-deterministic responses | None |
+| **Pricing Pages** | Navigate Pricing menu, verify cost type and pricing mode toggles | Page returns 404 — feature not fully available | None |
+| **Export/Download** | Export CAUI data to CSV, download dashboard reports, test Commitment Dashboard CSV exports | File download handling across multiple formats | None |
+| **Alerts** | Create Cost Alert Rules (trend/threshold), test Commitment Expiration alerts, verify alert triggers | Write operations — "Create Alert Rule" button visible, 0 existing rules | Cost alert rules list (read-only) |
 
 ### Browser Exploration Summary
 
