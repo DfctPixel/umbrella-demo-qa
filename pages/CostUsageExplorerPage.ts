@@ -15,21 +15,21 @@ export class CostUsageExplorerPage {
 
   constructor(public readonly page: Page) {
     this.heading = page.locator('heading:has-text("Cost & Usage Explorer")');
-    this.totalCost = page.locator('text=Total Cost');
-    this.groupByService = page.locator('text=Group By:');
-    this.groupByDate = page.locator('text=By:');
+    this.totalCost = page.getByText('Total Cost');
+    this.groupByService = page.getByText('Group By:');
+    this.groupByDate = page.getByText('By:');
     this.breadcrumb = page.locator('nav[aria-label="breadcrumb"]');
-    this.amortizedButton = page.locator('button:has-text("Amortized")');
+    this.amortizedButton = page.getByRole('button', { name: 'Amortized' });
     this.searchInput = page.getByRole('textbox', { name: 'Search' });
-    this.serviceList = page.locator('ul[role="list"]');
-    this.filterCount = page.locator('text=Presented items');
-    this.applyButton = page.locator('button:has-text("Apply")');
-    this.showK8sBreakdown = page.locator('text=Show K8S Breakdown');
+    this.serviceList = page.locator('[role="list"]');
+    this.filterCount = page.getByText('Presented items');
+    this.applyButton = page.getByRole('button', { name: 'Apply' });
+    this.showK8sBreakdown = page.getByText('Show K8S Breakdown');
   }
 
   async waitForLoad() {
     await this.page.waitForURL(/cost-usage-explorer/, { timeout: 30_000 });
-    await this.page.waitForSelector('text=Total Cost', { timeout: 30_000 });
+    await this.totalCost.waitFor({ state: 'visible', timeout: 30_000 });
   }
 
   async getTotalCostValue(): Promise<string> {
@@ -42,12 +42,12 @@ export class CostUsageExplorerPage {
   }
 
   async selectFirstService() {
-    const firstCheckbox = this.serviceList
-      .locator('listitem')
+    const firstItem = this.serviceList
+      .getByRole('listitem')
       .first()
-      .locator('button')
+      .getByRole('button')
       .first();
-    await firstCheckbox.click();
+    await firstItem.click();
   }
 
   async getServiceCount(): Promise<number> {

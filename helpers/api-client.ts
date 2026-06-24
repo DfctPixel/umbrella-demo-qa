@@ -1,8 +1,81 @@
 import { APIRequestContext, expect } from '@playwright/test';
 import { AuthTokens } from './auth';
 
+// ── Response type interfaces ────────────────────────────────────
+
+export interface SigninWithTokenResponse {
+  userName?: string;
+  userKey?: string;
+  email?: string;
+}
+
+export interface NotificationSettingsResponse {
+  enabled?: boolean;
+  email?: string;
+  [key: string]: unknown;
+}
+
+export interface VendorResponse {
+  id?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+export interface CauiResponse {
+  data?: unknown[];
+  totalCost?: number;
+  [key: string]: unknown;
+}
+
+export interface DistinctServiceNamesResponse {
+  services?: Array<{ serviceName?: string }>;
+  [key: string]: unknown;
+}
+
+export interface DistinctServiceCostsResponse {
+  services?: Array<{ serviceName?: string; cost?: number }>;
+  [key: string]: unknown;
+}
+
+export interface CueViewsResponse {
+  views?: Array<{ id?: string; name?: string }>;
+  [key: string]: unknown;
+}
+
+export interface RecommendationsHeatmapResponse {
+  summary?: unknown;
+  [key: string]: unknown;
+}
+
+export interface AnomalyStatsResponse {
+  total?: number;
+  open?: number;
+  [key: string]: unknown;
+}
+
+export interface BudgetsResponse {
+  budgets?: Array<{ id?: string; name?: string }>;
+  [key: string]: unknown;
+}
+
+export interface CommitmentSummaryResponse {
+  utilization?: unknown;
+  [key: string]: unknown;
+}
+
+export interface DashboardResponse {
+  id?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+// ── API Client ──────────────────────────────────────────────────
+
 /**
  * Typed wrapper around the Umbrella FinOps REST API.
+ *
+ * All methods use Playwright's APIRequestContext and return typed responses
+ * where possible, falling back to untyped JSON for dynamic endpoints.
  */
 export class UmbrellaApiClient {
   constructor(
@@ -12,106 +85,106 @@ export class UmbrellaApiClient {
 
   // ── Auth / User ──────────────────────────────────────────────
 
-  /** GET /users/plain-sub-users — returns sub-users / whoami info */
-  async getPlainSubUsers() {
+  async getPlainSubUsers(): Promise<Record<string, unknown>> {
     const res = await this.context.get('/users/plain-sub-users');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
   }
 
-  /** POST /users/signin-with-token — verify token-based auth */
-  async signinWithToken() {
+  async signinWithToken(): Promise<SigninWithTokenResponse> {
     const res = await this.context.post('/users/signin-with-token', {
       data: { selectedRole: null },
       headers: { Authorization: `Bearer ${this.tokens.jwtToken}` },
     });
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<SigninWithTokenResponse>;
   }
 
-  /** GET /users/user-settings/notifications */
-  async getNotificationSettings() {
+  async getNotificationSettings(): Promise<NotificationSettingsResponse> {
     const res = await this.context.get('/users/user-settings/notifications');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<NotificationSettingsResponse>;
   }
 
-  /** GET /users/on-boarding/v2/byod/vendors */
-  async getOnboardingVendors() {
+  async getOnboardingVendors(): Promise<VendorResponse[]> {
     const res = await this.context.get('/users/on-boarding/v2/byod/vendors');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<VendorResponse[]>;
   }
 
   // ── Cost & Usage ─────────────────────────────────────────────
 
-  /** POST /invoices/caui — Cost & Usage data query */
-  async postCaui(body: Record<string, unknown>) {
+  async postCaui(body: Record<string, unknown>): Promise<CauiResponse> {
     const res = await this.context.post('/invoices/caui', { data: body });
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<CauiResponse>;
   }
 
-  /** GET /invoices/service-names/distinct */
-  async getDistinctServiceNames() {
+  async getDistinctServiceNames(): Promise<DistinctServiceNamesResponse> {
     const res = await this.context.get('/invoices/service-names/distinct');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<DistinctServiceNamesResponse>;
   }
 
-  /** GET /invoices/service-costs/distinct */
-  async getDistinctServiceCosts() {
+  async getDistinctServiceCosts(): Promise<DistinctServiceCostsResponse> {
     const res = await this.context.get('/invoices/service-costs/distinct');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<DistinctServiceCostsResponse>;
   }
 
-  /** GET /invoices/cue-views */
-  async getCueViews() {
+  async getCueViews(): Promise<CueViewsResponse> {
     const res = await this.context.get('/invoices/cue-views');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<CueViewsResponse>;
   }
 
-  /** POST /recommendationsNew/heatmap/summary */
-  async getRecommendationsHeatmap() {
+  async getRecommendationsHeatmap(): Promise<RecommendationsHeatmapResponse> {
     const res = await this.context.post('/recommendationsNew/heatmap/summary', {
       data: {},
     });
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<RecommendationsHeatmapResponse>;
   }
 
-  /** GET /anomaly-detection/anomalies/stats */
-  async getAnomalyStats() {
+  async getAnomalyStats(): Promise<AnomalyStatsResponse> {
     const res = await this.context.get('/anomaly-detection/anomalies/stats');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<AnomalyStatsResponse>;
   }
 
-  /** GET /budgets/v2/i/?only_metadata=true */
-  async getBudgets() {
+  async getBudgets(): Promise<BudgetsResponse> {
     const res = await this.context.get('/budgets/v2/i/', {
       params: { only_metadata: 'true' },
     });
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<BudgetsResponse>;
   }
 
-  /** GET /commitment/utilization/i/summary */
-  async getCommitmentSummary(params: Record<string, string>) {
+  async getCommitmentSummary(params: Record<string, string>): Promise<CommitmentSummaryResponse> {
     const res = await this.context.get('/commitment/utilization/i/summary', {
       params,
     });
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<CommitmentSummaryResponse>;
   }
 
   // ── Dashboard / Custom ───────────────────────────────────────
 
-  /** GET /usage/custom-dashboard/dashboard/default */
-  async getDefaultDashboard() {
+  async getDefaultDashboard(): Promise<DashboardResponse> {
     const res = await this.context.get('/usage/custom-dashboard/dashboard/default');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<DashboardResponse>;
   }
 
-  /** GET /usage/custom-dashboard/dashboards */
-  async getDashboards() {
+  async getDashboards(): Promise<DashboardResponse[]> {
     const res = await this.context.get('/usage/custom-dashboard/dashboards');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<DashboardResponse[]>;
   }
 
-  /** GET /channels */
-  async getChannels() {
+  async getChannels(): Promise<Record<string, unknown>> {
     const res = await this.context.get('/channels');
-    return res.json();
+    expect(res.ok()).toBeTruthy();
+    return res.json() as Promise<Record<string, unknown>>;
   }
 }

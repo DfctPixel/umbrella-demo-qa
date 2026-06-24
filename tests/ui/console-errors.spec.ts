@@ -5,32 +5,54 @@ import { CostUsageExplorerPage } from '../../pages/CostUsageExplorerPage';
 import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
 
 /**
- * This fixture collects console errors and failed network requests
+ * Console & network error monitoring.
+ *
+ * Collects console errors and failed network requests across page navigations
  * to ensure the application is free of runtime errors.
  */
 test.describe('Console & Network Error Monitoring @ui', () => {
+  const CSP_ERROR_PATTERNS = [
+    'google.com/rmkt',
+    'google.com/ccm',
+    'google.com.ua',
+    'doubleclick.net',
+    'Content Security Policy',
+  ];
+
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
 
   test.beforeEach(async ({ page }) => {
-    // Reset arrays
     consoleErrors.length = 0;
     failedRequests.length = 0;
 
-    // Listen for console errors
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         consoleErrors.push(`[Console Error] ${msg.text()}`);
       }
     });
 
-    // Listen for failed requests
     page.on('requestfailed', (request) => {
       failedRequests.push(
         `[Failed Request] ${request.method()} ${request.url()} - ${request.failure()?.errorText || 'unknown'}`
       );
     });
   });
+
+  function isCspRelated(message: string): boolean {
+    return CSP_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
+  }
+
+  function getRelevantErrors(errors: string[]): string[] {
+    return errors.filter((error) => !isCspRelated(error));
+  }
+
+  function getRelevantFailedRequests(requests: string[]): string[] {
+    return requests.filter(
+      (request) =>
+        !isCspRelated(request) && !request.includes('net::ERR_ABORTED')
+    );
+  }
 
   test('should have no console errors or failed requests during login and dashboard navigation', async ({ page }) => {
     const loginPage = new LoginPage(page);
@@ -40,16 +62,22 @@ test.describe('Console & Network Error Monitoring @ui', () => {
     await loginPage.login(USER_EMAIL, USER_PASSWORD);
     await dashboardPage.waitForDashboardLoad();
 
-    // Wait a moment for any async requests to complete
-    await page.waitForTimeout(3000);
+    // Wait for network to settle (all async requests complete)
+    await page.waitForLoadState('networkidle');
 
-    // Report any issues (don't fail the test for expected auth redirects)
-    if (consoleErrors.length > 0) {
-      console.log('Console errors detected:', consoleErrors.join('\n'));
+    const relevantErrors = getRelevantErrors(consoleErrors);
+    const relevantFailures = getRelevantFailedRequests(failedRequests);
+
+    if (relevantErrors.length > 0) {
+      console.log('Relevant console errors:', relevantErrors.join('\n'));
     }
-    if (failedRequests.length > 0) {
-      console.log('Failed network requests:', failedRequests.join('\n'));
+    if (relevantFailures.length > 0) {
+      console.log('Relevant failed requests:', relevantFailures.join('\n'));
     }
+
+    // Assert no relevant errors (CSP violations from analytics are expected)
+    expect(relevantErrors).toHaveLength(0);
+    expect(relevantFailures).toHaveLength(0);
 
     // Check that we landed on the dashboard
     await expect(page).toHaveURL(/\/dashboard/);
@@ -60,25 +88,29 @@ test.describe('Console & Network Error Monitoring @ui', () => {
     const dashboardPage = new DashboardPage(page);
     const costUsagePage = new CostUsageExplorerPage(page);
 
-    // Login
     await loginPage.goto();
     await loginPage.login(USER_EMAIL, USER_PASSWORD);
     await dashboardPage.waitForDashboardLoad();
 
-    // Navigate to Cost & Usage Explorer
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
 
-    // Wait for data to load
-    await page.waitForTimeout(3000);
+    // Wait for network to settle
+    await page.waitForLoadState('networkidle');
 
-    // Report issues
-    if (consoleErrors.length > 0) {
-      console.log('Console errors detected:', consoleErrors.join('\n'));
+    const relevantErrors = getRelevantErrors(consoleErrors);
+    const relevantFailures = getRelevantFailedRequests(failedRequests);
+
+    if (relevantErrors.length > 0) {
+      console.log('Relevant console errors:', relevantErrors.join('\n'));
     }
-    if (failedRequests.length > 0) {
-      console.log('Failed network requests:', failedRequests.join('\n'));
+    if (relevantFailures.length > 0) {
+      console.log('Relevant failed requests:', relevantFailures.join('\n'));
     }
+
+    // Assert no relevant errors
+    expect(relevantErrors).toHaveLength(0);
+    expect(relevantFailures).toHaveLength(0);
 
     // Verify page loaded
     const totalCostText = await costUsagePage.getTotalCostValue();

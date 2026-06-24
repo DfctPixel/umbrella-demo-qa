@@ -13,11 +13,11 @@ export class DashboardPage {
   readonly costAndUsageExplorerItem: Locator;
 
   constructor(public readonly page: Page) {
-    this.mtdCost = page.locator('text=MTD cost');
-    this.previousMonthCost = page.locator('text=Previous Month Total Cost');
-    this.forecastingCard = page.locator('text=Forecasted Monthly Cost');
-    this.annualSavings = page.locator('text=Annual Potential Savings');
-    this.recommendations = page.locator('text=New Recommendations');
+    this.mtdCost = page.getByText('MTD cost');
+    this.previousMonthCost = page.getByText('Previous Month Total Cost');
+    this.forecastingCard = page.getByText('Forecasted Monthly Cost');
+    this.annualSavings = page.getByText('Annual Potential Savings');
+    this.recommendations = page.getByText('New Recommendations');
     this.sidebar = page.locator('nav');
 
     this.costAndUsageMenuItem = page.locator('#sideBarItemButton-costAndUsage');
@@ -28,12 +28,13 @@ export class DashboardPage {
 
   async navigateToCostAndUsageExplorer() {
     await this.costAndUsageMenuItem.click();
-    await this.page.waitForTimeout(500);
+    // Wait for the submenu item to become visible after the expand animation
+    await this.costAndUsageExplorerItem.waitFor({ state: 'visible', timeout: 5_000 });
     await this.costAndUsageExplorerItem.click();
-    await this.page.waitForURL(/cost-usage-explorer/);
+    await this.page.waitForURL(/cost-usage-explorer/, { timeout: 15_000 });
   }
 
   async waitForDashboardLoad() {
-    await this.page.waitForSelector('text=MTD cost', { timeout: 30_000 });
+    await this.mtdCost.waitFor({ state: 'visible', timeout: 30_000 });
   }
 }

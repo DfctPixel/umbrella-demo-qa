@@ -6,12 +6,10 @@ import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
 
 test.describe('UI Cost & Usage Explorer @ui', () => {
   test.beforeEach(async ({ page }) => {
-    // Log in before each test
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_EMAIL, USER_PASSWORD);
 
-    // Wait for dashboard
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.waitForDashboardLoad();
   });
@@ -23,7 +21,6 @@ test.describe('UI Cost & Usage Explorer @ui', () => {
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
 
-    // Verify we're on the Cost & Usage Explorer page
     await expect(page).toHaveURL(/cost-usage-explorer/);
   });
 
@@ -34,7 +31,6 @@ test.describe('UI Cost & Usage Explorer @ui', () => {
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
 
-    // Verify key elements are visible
     const totalCostText = await costUsagePage.getTotalCostValue();
     expect(totalCostText).toBeTruthy();
   });
@@ -46,12 +42,8 @@ test.describe('UI Cost & Usage Explorer @ui', () => {
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
 
-    // Type in the search box
+    // Type in the search box and verify the value was entered
     await costUsagePage.searchService('EC2');
-    await page.waitForTimeout(1000);
-
-    // Verify the search input has the value
-    const searchValue = await costUsagePage.searchInput.inputValue();
-    expect(searchValue.toLowerCase()).toContain('ec2');
+    await expect(costUsagePage.searchInput).toHaveValue('EC2');
   });
 });
