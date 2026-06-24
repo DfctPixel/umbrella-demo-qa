@@ -138,14 +138,15 @@ npx playwright test --grep "@api"
 | Advanced FinOps | `should fetch cost alert rules` | **Alerts** | Cost alert configuration |
 | Advanced FinOps | `should fetch partner billing summary` | **Partner Billing** | Partner billing summary with pagination |
 
-### UI Tests (10+ tests)
+### UI Tests (12+ tests)
 
 | Suite | File | Description |
 |---|---|---|
 | Login Flow | `tests/ui/login.spec.ts` | Login form display, valid credential login, empty credential validation, forgot password |
 | Cost & Usage Explorer | `tests/ui/cost-usage.spec.ts` | Page navigation, cost data display, service search |
 | Error Monitoring | `tests/ui/console-errors.spec.ts` | Console error detection, failed network request detection across login and explorer |
-| Advanced Features | `tests/ui/advanced-features.spec.ts` | Commitment Dashboard charts, Anomaly Detection data, Budget page disabled state |
+| Advanced Features | `tests/ui/advanced-features.spec.ts` | Budget page disabled state (no API equivalent) |
+| Data Export Integrity | `tests/ui/data-export.spec.ts` | Compare UI table data against CSV export (Commitment Dashboard) |
 
 ## Authentication Flow
 
