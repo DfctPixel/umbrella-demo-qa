@@ -11,14 +11,6 @@ import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
  * to ensure the application is free of runtime errors.
  */
 test.describe('Console & Network Error Monitoring @ui', () => {
-  const CSP_ERROR_PATTERNS = [
-    'google.com/rmkt',
-    'google.com/ccm',
-    'google.com.ua',
-    'doubleclick.net',
-    'Content Security Policy',
-  ];
-
   const consoleErrors: string[] = [];
   const failedRequests: string[] = [];
 
@@ -39,18 +31,9 @@ test.describe('Console & Network Error Monitoring @ui', () => {
     });
   });
 
-  function isCspRelated(message: string): boolean {
-    return CSP_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
-  }
-
-  function getRelevantErrors(errors: string[]): string[] {
-    return errors.filter((error) => !isCspRelated(error));
-  }
-
-  function getRelevantFailedRequests(requests: string[]): string[] {
+  function getRelevantFailures(requests: string[]): string[] {
     return requests.filter(
-      (request) =>
-        !isCspRelated(request) && !request.includes('net::ERR_ABORTED')
+      (request) => !request.includes('net::ERR_ABORTED')
     );
   }
 
@@ -65,18 +48,17 @@ test.describe('Console & Network Error Monitoring @ui', () => {
     // Wait for network to settle (all async requests complete)
     await page.waitForLoadState('networkidle');
 
-    const relevantErrors = getRelevantErrors(consoleErrors);
-    const relevantFailures = getRelevantFailedRequests(failedRequests);
+    const relevantFailures = getRelevantFailures(failedRequests);
 
-    if (relevantErrors.length > 0) {
-      console.log('Relevant console errors:', relevantErrors.join('\n'));
+    if (consoleErrors.length > 0) {
+      console.log('Console errors:', consoleErrors.join('\n'));
     }
     if (relevantFailures.length > 0) {
       console.log('Relevant failed requests:', relevantFailures.join('\n'));
     }
 
-    // Assert no relevant errors (CSP violations from analytics are expected)
-    expect(relevantErrors).toHaveLength(0);
+    // Assert no errors or failed requests
+    expect(consoleErrors).toHaveLength(0);
     expect(relevantFailures).toHaveLength(0);
 
     // Check that we landed on the dashboard
@@ -98,18 +80,17 @@ test.describe('Console & Network Error Monitoring @ui', () => {
     // Wait for network to settle
     await page.waitForLoadState('networkidle');
 
-    const relevantErrors = getRelevantErrors(consoleErrors);
-    const relevantFailures = getRelevantFailedRequests(failedRequests);
+    const relevantFailures = getRelevantFailures(failedRequests);
 
-    if (relevantErrors.length > 0) {
-      console.log('Relevant console errors:', relevantErrors.join('\n'));
+    if (consoleErrors.length > 0) {
+      console.log('Console errors:', consoleErrors.join('\n'));
     }
     if (relevantFailures.length > 0) {
       console.log('Relevant failed requests:', relevantFailures.join('\n'));
     }
 
-    // Assert no relevant errors
-    expect(relevantErrors).toHaveLength(0);
+    // Assert no errors
+    expect(consoleErrors).toHaveLength(0);
     expect(relevantFailures).toHaveLength(0);
 
     // Verify page loaded
