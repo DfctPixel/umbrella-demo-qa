@@ -1,30 +1,27 @@
 import { expect } from '@playwright/test';
-import { test } from '../../helpers/fixtures';
-import { CommitmentDashboardPage } from '../../pages/CommitmentDashboardPage';
+import { test } from '../../../helpers/fixtures';
+import { CommitmentDashboardPage } from '../../../pages/CommitmentDashboardPage';
 
 function normalizeValue(val: string): string {
   return val.replace(/\s+/g, ' ').trim();
 }
 
-test.describe('Data Export Integrity @ui', () => {
-  test('should export Top Unutilized table to CSV matching UI data', async ({ page }) => {
+test.describe('Commitment CSV Export @ui', () => {
+  test('export Top Unutilized table to CSV matching UI data', async ({ page }) => {
     const commitmentPage = new CommitmentDashboardPage(page);
     await commitmentPage.navigateTo();
     await commitmentPage.waitForLoad();
     await commitmentPage.assertUrlContains(/commitment\/dashboard/);
 
-    // Use the DataTable component from the page object
     const table = commitmentPage.topUnutilizedTable;
     await table.waitForData();
     const uiRows = await table.readRows();
     expect(uiRows.length).toBeGreaterThanOrEqual(1);
 
-    // Find the Export as CSV button
     const sectionHeading = page.getByText('Top 10 Unutilized Commitment');
     const exportSection = sectionHeading.locator('..').locator('..');
     const exportButton = exportSection.getByRole('button', { name: /Export as CSV/i });
 
-    // Export and compare
     const csvRows = await table.exportToCsv(exportButton, page, 'export.csv');
     expect(csvRows.length).toBeGreaterThanOrEqual(1);
 
@@ -38,7 +35,7 @@ test.describe('Data Export Integrity @ui', () => {
     }
   });
 
-  test('should export Top Expiring table to CSV matching UI data', async ({ page }) => {
+  test('export Top Expiring table to CSV matching UI data', async ({ page }) => {
     const commitmentPage = new CommitmentDashboardPage(page);
     await commitmentPage.navigateTo();
     await commitmentPage.waitForLoad();

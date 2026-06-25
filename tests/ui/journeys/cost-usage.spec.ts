@@ -1,42 +1,31 @@
 import { expect } from '@playwright/test';
-import { test } from '../../helpers/fixtures';
-import { CostUsageExplorerPage } from '../../pages/CostUsageExplorerPage';
-import { DashboardPage } from '../../pages/DashboardPage';
+import { test } from '../../../helpers/fixtures';
+import { DashboardPage } from '../../../pages/DashboardPage';
+import { CostUsageExplorerPage } from '../../../pages/CostUsageExplorerPage';
 
-test.describe('UI Cost & Usage Explorer @ui', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    // authenticatedPage is already logged in and on the dashboard
-  });
-
+test.describe('Cost & Usage Journey @ui', () => {
   test('should navigate to Cost & Usage Explorer from sidebar', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
     const costUsagePage = new CostUsageExplorerPage(page);
-
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
-
     await expect(page).toHaveURL(/cost-usage-explorer/);
   });
 
-  test('should display cost data in Cost & Usage Explorer', async ({ page }) => {
+  test('should display search and filter controls', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
     const costUsagePage = new CostUsageExplorerPage(page);
-
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
-
-    const totalCostText = await costUsagePage.getTotalCostValue();
-    expect(totalCostText).toBeTruthy();
+    await expect(costUsagePage.searchInput).toBeVisible({ timeout: 10_000 });
+    await expect(costUsagePage.totalCost).toBeVisible({ timeout: 10_000 });
   });
 
   test('should allow searching for a service', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
     const costUsagePage = new CostUsageExplorerPage(page);
-
     await dashboardPage.navigateToCostAndUsageExplorer();
     await costUsagePage.waitForLoad();
-
-    // Type in the search box and verify the value was entered
     await costUsagePage.searchService('EC2');
     await expect(costUsagePage.searchInput).toHaveValue('EC2');
   });

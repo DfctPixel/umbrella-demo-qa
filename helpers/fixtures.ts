@@ -1,7 +1,7 @@
 import { test as base, Page } from '@playwright/test';
 import { LoginPage } from '../pages/LoginPage';
 import { DashboardPage } from '../pages/DashboardPage';
-import { USER_EMAIL, USER_PASSWORD } from './auth';
+import { USER_EMAIL, USER_PASSWORD } from './auth/types';
 
 /**
  * Authenticated fixture: logs in once via UI and provides a page
