@@ -1,100 +1,97 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 
 /**
  * Base class for all page objects.
  *
  * Provides shared utilities like navigation helpers, wait strategies,
- * and common element interaction patterns so that each page object
- * focuses on its own domain concerns rather than Playwright plumbing.
+ * common element interaction patterns, and fluent assertion methods.
+ * Every page object focuses on its own domain concerns rather than
+ * Playwright plumbing.
  */
 export abstract class BasePage {
   constructor(public readonly page: Page) {}
 
   // ── Navigation ──────────────────────────────────────────────
 
-  /**
-   * Navigate to a relative or absolute URL and wait for the page to be fully loaded.
-   */
-  async navigate(url: string, options?: { timeout?: number }): Promise<void> {
+  async navigate(url: string, options?: { timeout?: number }): Promise<this> {
     await this.page.goto(url, options);
     await this.waitForLoadState();
+    return this;
   }
 
-  /**
-   * Wait for the given navigation / lifecycle state.
-   */
   async waitForLoadState(
     state: 'load' | 'domcontentloaded' | 'networkidle' = 'networkidle',
     options?: { timeout?: number },
-  ): Promise<void> {
+  ): Promise<this> {
     await this.page.waitForLoadState(state, options);
+    return this;
   }
 
-  /**
-   * Wait until the page URL matches the given regex or string.
-   */
   async waitForUrl(
     pattern: RegExp | string,
     options?: { timeout?: number },
-  ): Promise<void> {
+  ): Promise<this> {
     await this.page.waitForURL(pattern, options);
+    return this;
   }
 
-  /**
-   * Return the current page URL.
-   */
   async getCurrentUrl(): Promise<string> {
     return this.page.url();
   }
 
-  /**
-   * Reload the current page and wait for it to settle.
-   */
-  async reload(options?: { timeout?: number }): Promise<void> {
+  async reload(options?: { timeout?: number }): Promise<this> {
     await this.page.reload(options);
     await this.waitForLoadState();
+    return this;
   }
 
   // ── Element utilities ───────────────────────────────────────
 
-  /**
-   * Wait for a locator to be visible and return it (useful for chaining).
-   */
-  async waitVisible(
-    locator: Locator,
-    timeout = 15_000,
-  ): Promise<Locator> {
+  async waitVisible(locator: Locator, timeout = 15_000): Promise<Locator> {
     await locator.waitFor({ state: 'visible', timeout });
     return locator;
   }
 
-  /**
-   * Click an element after waiting for it to be visible.
-   */
-  async clickVisible(
-    locator: Locator,
-    options?: { timeout?: number },
-  ): Promise<void> {
+  async clickVisible(locator: Locator, options?: { timeout?: number }): Promise<this> {
     await locator.waitFor({ state: 'visible', timeout: options?.timeout ?? 15_000 });
     await locator.click();
+    return this;
   }
 
-  /**
-   * Fill a text input after waiting for it to be visible.
-   */
-  async fillVisible(
-    locator: Locator,
-    text: string,
-    options?: { timeout?: number },
-  ): Promise<void> {
+  async fillVisible(locator: Locator, text: string, options?: { timeout?: number }): Promise<this> {
     await locator.waitFor({ state: 'visible', timeout: options?.timeout ?? 15_000 });
     await locator.fill(text);
+    return this;
   }
 
-  /**
-   * Get the visible text content of an element.
-   */
   async getTextContent(locator: Locator): Promise<string> {
     return (await locator.textContent()) || '';
+  }
+
+  // ── Fluent Assertions (returns this for chaining) ──────────
+
+  async assertVisible(locator: Locator, msg?: string): Promise<this> {
+    await expect(locator, msg).toBeVisible();
+    return this;
+  }
+
+  async assertHasText(locator: Locator, text: string | RegExp, msg?: string): Promise<this> {
+    await expect(locator, msg).toHaveText(text);
+    return this;
+  }
+
+  async assertUrlContains(pattern: RegExp | string, msg?: string): Promise<this> {
+    await expect(this.page, msg).toHaveURL(pattern);
+    return this;
+  }
+
+  async assertDisabled(locator: Locator, msg?: string): Promise<this> {
+    await expect(locator, msg).toBeDisabled();
+    return this;
+  }
+
+  async assertCount(locator: Locator, expected: number, msg?: string): Promise<this> {
+    await expect(locator, msg).toHaveCount(expected);
+    return this;
   }
 }

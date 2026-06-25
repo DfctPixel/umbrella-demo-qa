@@ -1,5 +1,7 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { DataTableComponent } from '../components/DataTable';
+import { COMMITMENT_DASHBOARD_SELECTORS } from '../config/selectors';
 
 export class CommitmentDashboardPage extends BasePage {
   readonly heading: Locator;
@@ -8,30 +10,38 @@ export class CommitmentDashboardPage extends BasePage {
   readonly monthlyUsageChart: Locator;
   readonly totalHoursChart: Locator;
   readonly savingsWasteChart: Locator;
-  readonly topUnutilizedTable: Locator;
-  readonly topExpiringTable: Locator;
+
+  // Reusable DataTable components
+  readonly topUnutilizedTable: DataTableComponent;
+  readonly topExpiringTable: DataTableComponent;
 
   constructor(page: Page) {
     super(page);
-    this.heading = page.getByRole('heading', { name: /Commitment Dashboard/i });
+    this.heading = page.locator(COMMITMENT_DASHBOARD_SELECTORS.heading);
     this.commitmentMenuItem = page.locator('#sideBarItemButton-commitment');
     this.commitmentDashboardItem = page.locator('#innerSideBarItemButton-commitmentDashboard');
     this.monthlyUsageChart = page.getByText('Monthly Usage By Pricing Method');
     this.totalHoursChart = page.getByText('Total Hours Distribution');
     this.savingsWasteChart = page.getByText('Commitment Savings & Waste');
-    this.topUnutilizedTable = page.getByText('Top 10 Unutilized Commitment');
-    this.topExpiringTable = page.getByText('Top 10 Commitment Expiring Soon');
+
+    // Use DataTable components with semantic table finding
+    this.topUnutilizedTable = new DataTableComponent(
+      page.locator('table').filter({ hasText: 'Linked Account' }).first()
+    );
+    this.topExpiringTable = new DataTableComponent(
+      page.locator('table').filter({ hasText: 'Expiration Date' }).first()
+    );
   }
 
-  async navigateTo() {
+  async navigateTo(): Promise<this> {
     await this.clickVisible(this.commitmentMenuItem);
     await this.commitmentDashboardItem.waitFor({ state: 'visible', timeout: 5_000 });
     await this.clickVisible(this.commitmentDashboardItem);
-    await this.waitForUrl(/commitment\/dashboard/, { timeout: 15_000 });
+    return this.waitForUrl(/commitment\/dashboard/);
   }
 
-  async waitForLoad() {
+  async waitForLoad(): Promise<this> {
     await this.heading.waitFor({ state: 'visible', timeout: 30_000 });
-    await this.waitForLoadState('networkidle');
+    return this.waitForLoadState('networkidle');
   }
 }
