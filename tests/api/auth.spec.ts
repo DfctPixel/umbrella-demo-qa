@@ -29,23 +29,11 @@ test.describe('API Authentication @api', () => {
   });
 
   test('should verify identity via signin-with-token', async () => {
-    const { tokens } = await authenticate();
+    const { context, tokens } = await createAuthenticatedContext();
+    const api = new UmbrellaApiClient(context, tokens);
 
-    // NOTE: The browser sends the authorization header with the RAW JWT
-    // (no "Bearer " prefix). It also sends apikey and commonparams headers.
-    const res = await fetch(`${API_URL}/users/signin-with-token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        authorization: tokens.jwtToken, // raw JWT, no "Bearer " prefix
-        apikey: '-1:-1:-1',
-        commonparams: '{"isPpApplied":false}',
-      },
-      body: JSON.stringify({ selectedRole: null }),
-    });
-
-    expect(res.ok).toBeTruthy();
-    const whoami = await res.json();
+    // Use the typed API client method instead of raw fetch
+    const whoami = await api.signinWithToken();
     expect(whoami).toBeDefined();
     expect(
       whoami.hasOwnProperty('userName') || whoami.hasOwnProperty('userKey')
@@ -95,5 +83,24 @@ test.describe('API Authentication @api', () => {
 
     const notifications = await api.getNotificationSettings();
     expect(notifications).toBeDefined();
+  });
+
+  test('should reject expired or garbage JWT (negative)', async () => {
+    const { context } = await createAuthenticatedContext();
+
+    // Test with an obviously garbage token
+    const garbageRes = await context.get('/users/plain-sub-users', {
+      headers: { Authorization: 'Bearer garbage-token-that-will-fail' },
+    });
+    expect(garbageRes.ok()).toBeFalsy();
+    expect(garbageRes.status()).toBe(401);
+
+    // Test with an expired-style JWT (valid structure, invalid signature/claims)
+    const expiredJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiZW1haWwiOiJ0ZXN0QHRlc3QuY29tIiwiZXhwIjoxNTAwMDAwMDAwfQ.fake-signature';
+    const expiredRes = await context.get('/users/plain-sub-users', {
+      headers: { Authorization: `Bearer ${expiredJwt}` },
+    });
+    expect(expiredRes.ok()).toBeFalsy();
+    expect(expiredRes.status()).toBe(401);
   });
 });

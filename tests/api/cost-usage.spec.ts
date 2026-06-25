@@ -155,7 +155,7 @@ test.describe('API Cost & Usage @api', () => {
 
   // ── Recommendations (FinOps optimization) ───────────────────
 
-  test('should fetch recommendations total count and categories', async () => {
+  test('should fetch recommendations total count, categories, and non-negative savings', async () => {
     // Total count — validates the dashboard "New Recommendations" widget data
     const total = await api.getRecommendationsTotal();
     expect(typeof total).toBe('number');
@@ -169,6 +169,20 @@ test.describe('API Cost & Usage @api', () => {
       expect(typeof cat.id).toBe('string');
       expect(cat.name).toBeDefined();
       expect(typeof cat.name).toBe('string');
+    }
+
+    // Also validate that recommendation savings are non-negative
+    // (catches negative-savings bugs like the $-6,133 found during exploration)
+    const recs = await api.getRecommendationsList();
+    if (recs.page !== undefined) {
+      const items = recs.page as Array<Record<string, unknown>>;
+      for (const item of items) {
+        if (item.annualSavings !== undefined) {
+          expect(typeof item.annualSavings).toBe('number');
+          // Savings should never be negative — negative savings is a bug
+          expect(item.annualSavings).toBeGreaterThanOrEqual(0);
+        }
+      }
     }
   });
 
