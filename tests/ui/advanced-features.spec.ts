@@ -1,19 +1,10 @@
-import { test, expect } from '@playwright/test';
-import { LoginPage } from '../../pages/LoginPage';
-import { DashboardPage } from '../../pages/DashboardPage';
+import { expect } from '@playwright/test';
+import { test } from '../../helpers/fixtures';
 import { BudgetPage } from '../../pages/BudgetPage';
 import { AnomalyDetectionPage } from '../../pages/AnomalyDetectionPage';
-import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
 
 test.describe('UI Advanced Features @ui', () => {
-  test.beforeEach(async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(USER_EMAIL, USER_PASSWORD);
-
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.waitForDashboardLoad();
-  });
+  // Uses authenticated fixture — no login boilerplate needed
 
   // Budget disabled state has no API equivalent — kept as UI test
   test('should show Budget page with Create Budget button disabled', async ({ page }) => {

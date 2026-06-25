@@ -4,6 +4,7 @@ import { DashboardPage } from '../../pages/DashboardPage';
 import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
 
 test.describe('UI Login Flow @ui', () => {
+  // Login tests DON'T use the authenticated fixture — they test the login flow itself
   test('should navigate to login page and display login form', async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();

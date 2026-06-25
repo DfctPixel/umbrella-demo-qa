@@ -1,17 +1,11 @@
-import { test, expect } from '@playwright/test';
-import { LoginPage } from '../../pages/LoginPage';
-import { DashboardPage } from '../../pages/DashboardPage';
+import { expect } from '@playwright/test';
+import { test } from '../../helpers/fixtures';
 import { CostUsageExplorerPage } from '../../pages/CostUsageExplorerPage';
-import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
+import { DashboardPage } from '../../pages/DashboardPage';
 
 test.describe('UI Cost & Usage Explorer @ui', () => {
-  test.beforeEach(async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(USER_EMAIL, USER_PASSWORD);
-
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.waitForDashboardLoad();
+  test.beforeEach(async ({ authenticatedPage }) => {
+    // authenticatedPage is already logged in and on the dashboard
   });
 
   test('should navigate to Cost & Usage Explorer from sidebar', async ({ page }) => {

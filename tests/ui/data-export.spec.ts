@@ -1,8 +1,6 @@
-import { test, expect, Locator } from '@playwright/test';
-import { LoginPage } from '../../pages/LoginPage';
-import { DashboardPage } from '../../pages/DashboardPage';
+import { expect, Locator } from '@playwright/test';
+import { test } from '../../helpers/fixtures';
 import { CommitmentDashboardPage } from '../../pages/CommitmentDashboardPage';
-import { USER_EMAIL, USER_PASSWORD } from '../../helpers/auth';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -106,13 +104,7 @@ async function exportAndCompare(
 }
 
 test.describe('Data Export Integrity @ui', () => {
-  test.beforeEach(async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(USER_EMAIL, USER_PASSWORD);
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.waitForDashboardLoad();
-  });
+  // Uses authenticated fixture — login is handled automatically by test.extend
 
   test('should export Top Unutilized table to CSV matching UI data', async ({ page }) => {
     await exportAndCompare(page, new CommitmentDashboardPage(page), 'Top 10 Unutilized Commitment', 'export.csv');
