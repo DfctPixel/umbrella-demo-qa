@@ -3,7 +3,8 @@ import { BasePage } from './BasePage';
 
 export class CostUsageExplorerPage extends BasePage {
   readonly heading: Locator;
-  readonly totalCost: Locator;
+  readonly totalCostLabel: Locator;
+  readonly totalCostValue: Locator;
   readonly groupByService: Locator;
   readonly groupByDate: Locator;
   readonly breadcrumb: Locator;
@@ -17,7 +18,8 @@ export class CostUsageExplorerPage extends BasePage {
   constructor(page: Page) {
     super(page);
     this.heading = page.getByRole('heading', { name: /Cost & Usage Explorer/i });
-    this.totalCost = page.getByText('Total Cost');
+    this.totalCostLabel = page.getByText('Total Cost');
+    this.totalCostValue = page.locator('h2').filter({ hasText: /\$/ }).first();
     this.groupByService = page.getByText('Group By:');
     this.groupByDate = page.getByText('By:');
     this.breadcrumb = page.locator('nav[aria-label="breadcrumb"]');
@@ -31,15 +33,21 @@ export class CostUsageExplorerPage extends BasePage {
 
   async waitForLoad() {
     await this.waitForUrl(/cost-usage-explorer/, { timeout: 30_000 });
-    await this.totalCost.waitFor({ state: 'visible', timeout: 30_000 });
+    await this.totalCostLabel.waitFor({ state: 'visible', timeout: 30_000 });
   }
 
   async getTotalCostValue(): Promise<string> {
-    return this.getTextContent(this.totalCost);
+    return this.getTextContent(this.totalCostValue);
   }
 
   async searchService(serviceName: string) {
     await this.fillVisible(this.searchInput, serviceName);
+  }
+
+  async getFilteredCount(): Promise<{ shown: number; total: number } | null> {
+    const text = await this.getTextContent(this.filterCount);
+    const match = text.match(/Presented items \((\d+)\/(\d+)\)/);
+    return match ? { shown: parseInt(match[1], 10), total: parseInt(match[2], 10) } : null;
   }
 
   async selectFirstService() {

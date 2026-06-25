@@ -19,17 +19,18 @@ export class CommitmentDashboardPage extends BasePage {
     super(page);
     this.heading = page.locator(COMMITMENT_DASHBOARD_SELECTORS.heading);
     this.commitmentMenuItem = page.locator('#sideBarItemButton-commitment');
-    this.commitmentDashboardItem = page.locator('#innerSideBarItemButton-commitmentDashboard');
+    this.commitmentDashboardItem = page.locator('#innerSideBarItemButton-dashboard');
     this.monthlyUsageChart = page.getByText('Monthly Usage By Pricing Method');
     this.totalHoursChart = page.getByText('Total Hours Distribution');
     this.savingsWasteChart = page.getByText('Commitment Savings & Waste');
 
-    // Use DataTable components with semantic table finding
+    // Use DataTable components scoped by section heading proximity
+    // Tables are found by sibling relationship to their section heading
     this.topUnutilizedTable = new DataTableComponent(
-      page.locator('table').filter({ hasText: 'Linked Account' }).first()
+      page.locator('text=Top 10 Unutilized Commitment').locator('..').locator('..').locator('table')
     );
     this.topExpiringTable = new DataTableComponent(
-      page.locator('table').filter({ hasText: 'Expiration Date' }).first()
+      page.locator('text=Top 10 Commitment Expiring Soon').locator('..').locator('..').locator('table')
     );
   }
 
