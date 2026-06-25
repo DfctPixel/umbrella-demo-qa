@@ -35,8 +35,8 @@ test.describe('API Advanced FinOps @api', () => {
   // ── Anomaly Detection list ─────────────────────────────────
 
   test('should fetch anomaly detection list with valid structure', async () => {
-    const startDate = '2026-05-01';
-    const endDate = '2026-06-24';
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const anomalies = await api.getAnomalyDetectionList({
       startDate,
