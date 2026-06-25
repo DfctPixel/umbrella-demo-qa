@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, Locator } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage';
 import { DashboardPage } from '../../pages/DashboardPage';
 import { CommitmentDashboardPage } from '../../pages/CommitmentDashboardPage';
@@ -57,42 +57,43 @@ function parseCsvLine(line: string): string[] {
 }
 
 /**
- * Read a data table from the DOM as an array of row objects.
- * Expects a <table> with <thead> for headers and <tbody> for data rows.
+ * Read data rows from a <table> element in the DOM as an array of key-value pairs.
+ * Uses the table's header row (first <tr> in <thead>) as keys.
  */
-async function readTableData(page: Page, tableLocator: string): Promise<Record<string, string>[]> {
-  // Get table headers
-  const headers = await page.$$eval(`${tableLocator} thead tr:first-child th, ${tableLocator} thead tr:first-child td`, 
-    (cells) => cells.map((c) => (c.textContent || '').trim()).filter(Boolean)
-  );
+async function readTableRows(table: Locator): Promise<Record<string, string>[]> {
+  // Get headers via Playwright locator API for proper auto-waiting
+  const headerCells = table.locator('thead tr').first().locator('th, td');
+  const headerCount = await headerCells.count();
+  const headers: string[] = [];
+  for (let i = 0; i < headerCount; i++) {
+    headers.push(((await headerCells.nth(i).textContent()) || '').trim());
+  }
 
-  // Get table rows (skip filter row which has input fields)
-  const rows = await page.$$eval(`${tableLocator} tbody tr`, 
-    (trs, hdrs) => {
-      return trs
-        .filter((tr) => {
-          // Skip rows that contain input elements (filter rows)
-          return !tr.querySelector('input');
-        })
-        .map((tr) => {
-          const cells = tr.querySelectorAll('td, th');
-          const row: Record<string, string> = {};
-          cells.forEach((cell, i) => {
-            if (hdrs[i]) {
-              // Get text, excluding inner elements like progress bars
-              const text = (cell as HTMLElement).innerText
-                .replace(/\s+/g, ' ')
-                .trim();
-              row[hdrs[i]] = text;
-            }
-          });
-          return row;
-        });
-    },
-    headers
-  );
+  // Get data rows (skip filter rows containing <input> elements)
+  const allRows = table.locator('tbody tr');
+  const rowCount = await allRows.count();
+  const result: Record<string, string>[] = [];
 
-  return rows;
+  for (let r = 0; r < rowCount; r++) {
+    const row = allRows.nth(r);
+    // Skip rows that contain input elements (filter rows)
+    const inputs = row.locator('input');
+    if ((await inputs.count()) > 0) continue;
+
+    const cells = row.locator('td, th');
+    const cellCount = await cells.count();
+    const entry: Record<string, string> = {};
+
+    for (let c = 0; c < Math.min(cellCount, headers.length); c++) {
+      const raw = ((await cells.nth(c).innerText()) || '').replace(/\s+/g, ' ').trim();
+      entry[headers[c]] = raw;
+    }
+    if (Object.keys(entry).length > 0) {
+      result.push(entry);
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -119,21 +120,26 @@ test.describe('Data Export Integrity @ui', () => {
 
     await expect(page).toHaveURL(/commitment\/dashboard/);
 
-    // Wait for tables to fully load
-    await page.waitForTimeout(2000);
-    await page.waitForLoadState('networkidle');
+    // Wait for the "Top 10 Unutilized Commitment" section heading + its table to be visible
+    const sectionHeading = page.getByText('Top 10 Unutilized Commitment');
+    await expect(sectionHeading).toBeVisible({ timeout: 15_000 });
 
-    // Read the "Top 10 Unutilized Commitment" table data from the DOM
-    // Find the table by looking for the heading first, then the adjacent table
-    const topUnutilizedTable = page.locator('table').filter({ has: page.locator('thead') }).first();
-    await expect(topUnutilizedTable).toBeVisible({ timeout: 10_000 });
+    // The table following this heading — find via heading proximity
+    const unutilizedTable = page.locator('table').filter({ hasText: 'Linked Account' }).first();
+    await expect(unutilizedTable).toBeVisible({ timeout: 10_000 });
+    await expect(unutilizedTable.locator('tbody tr').first()).toBeVisible({ timeout: 10_000 });
 
-    const uiRows = await readTableData(page, 'table');
-    
-    // Click the Export as CSV button associated with this table
+    // Read table data from the DOM
+    const uiRows = await readTableRows(unutilizedTable);
+    expect(uiRows.length).toBeGreaterThanOrEqual(1);
+
+    // Click the Export as CSV button associated with this section
+    // Find the Export button closest to this section heading
+    const exportSection = sectionHeading.locator('..').locator('..');
+    const exportButton = exportSection.getByRole('button', { name: /Export as CSV/i });
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 15_000 }),
-      page.getByRole('button', { name: /Export as CSV/i }).first().click(),
+      exportButton.click(),
     ]);
 
     // Save the downloaded CSV to a temp file and read it
@@ -142,7 +148,6 @@ test.describe('Data Export Integrity @ui', () => {
     const csvText = fs.readFileSync(downloadPath, 'utf-8');
     const csvRows = parseCsv(csvText);
 
-    // Compare: the number of data rows should match
     expect(csvRows.length).toBeGreaterThanOrEqual(1);
 
     // Compare each row's key fields
@@ -166,24 +171,24 @@ test.describe('Data Export Integrity @ui', () => {
 
     await expect(page).toHaveURL(/commitment\/dashboard/);
 
-    // Wait for tables to fully load
-    await page.waitForTimeout(2000);
-    await page.waitForLoadState('networkidle');
+    // Wait for the "Top 10 Commitment Expiring Soon" section heading + its table
+    const sectionHeading = page.getByText('Top 10 Commitment Expiring Soon');
+    await expect(sectionHeading).toBeVisible({ timeout: 15_000 });
 
-    // Find the "Top 10 Commitment Expiring Soon" table
-    const tables = page.locator('table');
-    const tableCount = await tables.count();
-    // The expiring table is usually the second data table
-    const expiringTable = tables.nth(tableCount > 1 ? 1 : 0);
+    const expiringTable = page.locator('table').filter({ hasText: 'Expiration Date' }).first();
     await expect(expiringTable).toBeVisible({ timeout: 10_000 });
+    await expect(expiringTable.locator('tbody tr').first()).toBeVisible({ timeout: 10_000 });
 
     // Read table data
-    const uiRows = await readTableData(page, 'table:not(:first-child)');
+    const uiRows = await readTableRows(expiringTable);
+    expect(uiRows.length).toBeGreaterThanOrEqual(1);
 
-    // Click the Export as CSV button — try the last one for the second table
+    // Find the Export as CSV button for this section
+    const exportSection = sectionHeading.locator('..').locator('..');
+    const exportButton = exportSection.getByRole('button', { name: /Export as CSV/i });
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 15_000 }),
-      page.getByRole('button', { name: /Export as CSV/i }).last().click(),
+      exportButton.click(),
     ]);
 
     const downloadPath = path.resolve('test-results', download.suggestedFilename() || 'export-expiring.csv');

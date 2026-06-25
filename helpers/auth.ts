@@ -1,4 +1,8 @@
 import { request, APIRequestContext } from '@playwright/test';
+import dotenv from 'dotenv';
+
+// Load .env file before reading process.env
+dotenv.config();
 
 const BASE_URL = process.env.BASE_URL || 'https://dev.umbrellacost.dev';
 const API_URL = process.env.API_URL || 'https://api.dev.umbrellacost.dev/api/v1';
