@@ -8,38 +8,52 @@ End-to-end test suite for the [Umbrella FinOps platform](https://dev.umbrellacos
   - Authentication flow (JWT token acquisition, token verification, error handling)
   - Cost & Usage Explorer endpoints (services, costs, budgets, anomalies, commitments, recommendations, K8s data, dashboard panels)
   - **Advanced FinOps**: Commitment Dashboard KPIs, Anomaly Detection list, Recommendations list, Tag Governance coverage, Cost Alert Rules, Partner Billing Summary
+  - **Cross-Domain Invariants**: CAUI granularity consistency, anomaly cost bounds, non-negative savings, service cost sums
 - **UI Tests** — Browser-based E2E testing at `https://dev.umbrellacost.dev`
   - Login flow (valid credentials, empty fields, forgot password navigation)
   - Dashboard navigation and cost data display
-  - Cost & Usage Explorer (service search, cost visualization)
-  - **Advanced UI**: Commitment Dashboard navigation/charts, Anomaly Detection page with real data, Budget page verification
-  - Console & network error monitoring across pages
-- **CI/CD** — GitHub Actions workflow runs API tests, UI tests, and TypeScript linting on push/PR
+  - Cost & Usage Explorer (service search, cost visualization, filter counts)
+  - Commitment Dashboard CSV export integrity (Top Unutilized, Top Expiring)
+- **CI/CD** — GitHub Actions workflow runs API tests, UI tests, ESLint, and TypeScript type checking on push/PR
 
 ## Project Structure
 
 ```
+├── components/
+│   └── DataTable.ts                 # Reusable table component (read, export CSV, parse)
+├── config/
+│   └── selectors.ts                 # Centralized selector constants for all pages
 ├── helpers/
-│   ├── auth.ts                      # Authentication helper (native fetch for JWT)
-│   └── api-client.ts                # Typed API client wrapper with FinOps response interfaces
+│   ├── fixtures.ts                  # Authenticated fixture (test.extend)
+│   ├── auth/
+│   │   ├── types.ts                 # Env vars, AuthTokens interface, AuthenticationError
+│   │   └── auth-bootstrap.ts        # authenticate() and createAuthenticatedContext()
+│   └── clients/
+│       ├── auth.client.ts           # AuthClient (plain sub users, signin-with-token, notifications)
+│       ├── cost-usage.client.ts     # CostUsageClient (CAUI, services, budgets, K8s, tags, recs, panels)
+│       └── finops.client.ts         # FinOpsClient (commitments, anomalies, tag governance, alerts, billing)
 ├── pages/
-│   ├── BasePage.ts                  # Abstract base class with shared navigation/element utilities
+│   ├── BasePage.ts                  # Abstract base class with shared navigation/element utilities + fluent assertions
 │   ├── LoginPage.ts                 # Login page object model
-│   ├── DashboardPage.ts             # Dashboard page object model
+│   ├── DashboardPage.ts             # Dashboard page object model (sidebar navigation)
 │   ├── CostUsageExplorerPage.ts     # Cost & Usage Explorer page object model
-│   ├── CommitmentDashboardPage.ts   # Commitment Dashboard (SP/RI charts & tables)
-│   ├── AnomalyDetectionPage.ts      # Anomaly Detection (cost anomalies, new services)
-│   └── BudgetPage.ts                # Budget management (read-only verification)
+│   └── CommitmentDashboardPage.ts   # Commitment Dashboard (SP/RI charts & tables via DataTable)
 ├── tests/
 │   ├── api/
-│   │   ├── auth.spec.ts             # API authentication tests
-│   │   ├── cost-usage.spec.ts       # API cost & usage data tests (11 test cases)
-│   │   └── commitment-anomaly.spec.ts # API advanced FinOps tests (8 test cases)
+│   │   ├── auth/
+│   │   │   └── auth.spec.ts         # API authentication tests (4 tests)
+│   │   ├── cost-usage/
+│   │   │   └── services.spec.ts     # API cost & usage data tests (8 tests)
+│   │   └── finops/
+│   │       ├── commitments.spec.ts  # API advanced FinOps tests (10 tests)
+│   │       └── integrity.spec.ts    # Cross-domain invariant tests (5 tests)
 │   └── ui/
-│       ├── login.spec.ts            # UI login flow tests
-│       ├── cost-usage.spec.ts       # UI Cost & Usage Explorer tests
-│       ├── console-errors.spec.ts   # Console/network error monitoring
-│       └── advanced-features.spec.ts # UI Commitment Dashboard, Anomaly Detection, Budget
+│       ├── auth/
+│       │   └── login.smoke.spec.ts  # UI login flow smoke tests (4 tests)
+│       ├── journeys/
+│       │   └── cost-usage.spec.ts   # UI Cost & Usage Explorer (3 tests)
+│       └── exports/
+│           └── commitment-csv.spec.ts # UI CSV export integrity (2 tests)
 ├── .github/workflows/ci.yml         # CI pipeline
 ├── eslint.config.mjs                # ESLint configuration
 ├── playwright.config.ts             # Playwright configuration
@@ -65,7 +79,7 @@ npm install
 # Install Playwright browsers
 npx playwright install chromium
 
-# Configure credentials (optional — defaults are set in helpers/auth.ts)
+# Configure credentials (optional — defaults are set in helpers/auth/types.ts)
 copy .env.example .env
 ```
 
@@ -101,7 +115,7 @@ npm run lint
 
 ```bash
 # Run specific test file
-npx playwright test tests/api/auth.spec.ts
+npx playwright test tests/api/auth/auth.spec.ts
 
 # Run tests with a specific tag
 npx playwright test --grep "@ui"
@@ -110,43 +124,62 @@ npx playwright test --grep "@api"
 
 ## Test Suites
 
-### API Tests (19+ tests)
+### API Tests (27 tests)
 
-| Suite | Test Name | FinOps Domain | Description |
-|---|---|---|---|
-| Auth | `should successfully authenticate and receive JWT + refresh tokens` | — | JWT token acquisition and payload validation |
-| Auth | `should verify identity via signin-with-token` | — | Post-authentication identity verification |
-| Auth | `should reject signin with wrong password (negative)` | — | Negative test for invalid credentials |
-| Auth | `should access protected endpoints with valid JWT` | — | Verify JWT grants access to protected endpoints |
-| Cost & Usage | `should fetch distinct service names` | **Cost Allocation** | Service name enumeration |
-| Cost & Usage | `should fetch distinct service costs with non-negative values` | **Cost Allocation** | Cost sanity check (non-negative per service) |
-| Cost & Usage | `should post CAUI query (monthly granularity)` | **Cost Mgmt** | Monthly cost aggregation query |
-| Cost & Usage | `should post CAUI query (daily granularity)` | **Cost Mgmt** | Daily cost aggregation query |
-| Cost & Usage | `should fetch anomaly stats with non-negative counts` | **Anomalies** | Anomaly detection data validation |
-| Cost & Usage | `should fetch budgets list with valid structure` | **Budgets** | Budget metadata validation |
-| Cost & Usage | `should fetch commitment utilization summary` | **Commitments** | Savings Plans utilization |
-| Cost & Usage | `should fetch commitment total savings for Savings Plans and RIs` | **Commitments** | YTD savings from SP + RI |
-| Cost & Usage | `should fetch recommendations total count and categories` | **Optimization** | Recommendations data validation |
-| Cost & Usage | `should fetch K8s cost data with non-negative values` | **Containers** | K8s workload cost visibility |
-| Cost & Usage | `should fetch custom dashboard panels with valid structure` | **Reporting** | Dashboard panel/KPI widget validation |
-| Advanced FinOps | `should fetch commitment dashboard with valid KPIs` | **Commitments** | Commitment Dashboard KPIs (savings, waste, utilization) |
-| Advanced FinOps | `should fetch anomaly detection list with valid structure` | **Anomalies** | Anomaly list with cost impact, delta, status |
-| Advanced FinOps | `should fetch anomaly alert rules list` | **Anomalies** | Alert rule metadata validation |
-| Advanced FinOps | `should fetch recommendations list with valid items` | **Optimization** | Recommendation item details (type, savings, status) |
-| Advanced FinOps | `should fetch tag governance coverage data` | **Cost Allocation** | Tag coverage completeness |
-| Advanced FinOps | `should fetch tag governance resources` | **Cost Allocation** | Tagged resource paged list |
-| Advanced FinOps | `should fetch cost alert rules` | **Alerts** | Cost alert configuration |
-| Advanced FinOps | `should fetch partner billing summary` | **Partner Billing** | Partner billing summary with pagination |
+#### Auth (`tests/api/auth/auth.spec.ts`)
 
-### UI Tests (12+ tests)
+| Test Name | Description |
+|---|---|
+| `should successfully authenticate and receive JWT + refresh tokens` | JWT token acquisition and payload validation |
+| `should verify identity via signin-with-token` | Post-authentication identity verification |
+| `should reject wrong password (negative)` | Negative test for invalid credentials |
+| `should reject expired or garbage JWT (negative)` | Negative test for invalid/expired tokens |
+
+#### Cost & Usage (`tests/api/cost-usage/services.spec.ts`)
+
+| Test Name | FinOps Domain | Description |
+|---|---|---|
+| `should fetch distinct service names` | **Cost Allocation** | Service name enumeration |
+| `should fetch distinct service costs with non-negative values` | **Cost Allocation** | Cost sanity check (non-negative per service) |
+| `should post CAUI query (monthly) and return cost data` | **Cost Mgmt** | Monthly cost aggregation query |
+| `should post CAUI query (daily) and return cost data` | **Cost Mgmt** | Daily cost aggregation query |
+| `should fetch budgets list` | **Budgets** | Budget metadata validation |
+| `should fetch recommendations total and categories` | **Optimization** | Recommendations data validation |
+| `should fetch custom dashboard panels` | **Reporting** | Dashboard panel/KPI widget validation |
+| `should fetch K8s and tag cost data with non-negative values` | **Containers** | K8s workload + tag cost visibility |
+
+#### FinOps Commitments (`tests/api/finops/commitments.spec.ts`)
+
+| Test Name | FinOps Domain | Description |
+|---|---|---|
+| `should fetch commitment dashboard KPIs` | **Commitments** | Commitment Dashboard KPIs |
+| `should fetch commitment utilization summary` | **Commitments** | Savings Plans utilization summary |
+| `should fetch total savings for SP and RI` | **Commitments** | YTD savings from SP + RI |
+| `should fetch anomaly stats` | **Anomalies** | Anomaly detection stats |
+| `should fetch anomaly detection list` | **Anomalies** | Anomaly list with cost impact, delta, status |
+| `should fetch anomaly alert rules` | **Anomalies** | Alert rule metadata validation |
+| `should fetch tag governance coverage` | **Cost Allocation** | Tag coverage completeness |
+| `should fetch tag governance resources` | **Cost Allocation** | Tagged resource paged list |
+| `should fetch cost alert rules` | **Alerts** | Cost alert configuration |
+| `should fetch partner billing summary` | **Partner Billing** | Partner billing summary with pagination |
+
+#### Cross-Domain Invariants (`tests/api/finops/integrity.spec.ts`)
+
+| Test Name | Description |
+|---|---|
+| `monthly CAUI total should roughly equal daily granularity` | Verifies CAUI consistency across granularities |
+| `anomaly daily cost should not exceed total cost impact` | Verifies anomaly cost bounds |
+| `recommendations should have non-negative savings` | Verifies annual/monthly savings >= 0 |
+| `service costs should sum to a reasonable total` | Verifies total cost > 0 |
+| `anomaly stats should be non-negative` | Verifies total/open counts >= 0 |
+
+### UI Tests (9 tests)
 
 | Suite | File | Description |
 |---|---|---|
-| Login Flow | `tests/ui/login.spec.ts` | Login form display, valid credential login, empty credential validation, forgot password |
-| Cost & Usage Explorer | `tests/ui/cost-usage.spec.ts` | Page navigation, cost data display, service search |
-| Error Monitoring | `tests/ui/console-errors.spec.ts` | Console error detection, failed network request detection across login and explorer |
-| Advanced Features | `tests/ui/advanced-features.spec.ts` | Budget page disabled state (no API equivalent) |
-| Data Export Integrity | `tests/ui/data-export.spec.ts` | Compare UI table data against CSV export (Commitment Dashboard) |
+| Login Smoke | `tests/ui/auth/login.smoke.spec.ts` | Login form render, valid login, empty credentials, forgot password |
+| Cost & Usage Journey | `tests/ui/journeys/cost-usage.spec.ts` | Navigation from sidebar, cost data display, service search filter |
+| Commitment CSV Export | `tests/ui/exports/commitment-csv.spec.ts` | Top Unutilized CSV vs UI, Top Expiring CSV vs UI |
 
 ## Authentication Flow
 
@@ -177,21 +210,27 @@ The API base URL is configured via the `API_URL` environment variable (default: 
 
 The GitHub Actions workflow (`.github/workflows/ci.yml`) runs three parallel jobs:
 
-- **test-api** — Runs all API tests
-- **test-ui** — Runs all UI tests (headless Chromium)
-- **lint** — TypeScript type checking with `tsc --noEmit`
+- **test-api** — Runs all API tests (`--grep @api`)
+- **test-ui** — Runs all UI tests (`--grep @ui`, headless Chromium)
+- **lint** — ESLint + TypeScript type checking (`tsc --noEmit`)
 
 ## Page Objects
 
 The project uses the Page Object Model pattern extending a shared `BasePage`:
 
-- **`BasePage`** — Abstract base class with `navigate()`, `waitForLoadState()`, `waitForUrl()`, `clickVisible()`, `fillVisible()`, `getTextContent()` etc.
+- **`BasePage`** — Abstract base class with `navigate()`, `waitForLoadState()`, `waitForUrl()`, `clickVisible()`, `fillVisible()`, `getTextContent()`, fluent assertions (`assertVisible`, `assertHasText`, `assertUrlContains`, `assertDisabled`, `assertCount`)
 - **`LoginPage`** — Email/password input, Next/Login buttons, forgot password link
-- **`DashboardPage`** — MTD cost, forecast, savings cards, sidebar navigation to Cost & Usage Explorer
-- **`CostUsageExplorerPage`** — Total cost, service search, filter controls, service list
-- **`CommitmentDashboardPage`** — Commitment KPIs, SP/RI charts (Monthly Usage, Total Hours Distribution, Savings & Waste), Top Unutilized/Expiring tables
-- **`AnomalyDetectionPage`** — Cost Anomalies / New Services tabs, anomaly list with cost impact and status
-- **`BudgetPage`** — Budget heading, Create Budget button (disabled), Current Budgets / Budget Summary tabs
+- **`DashboardPage`** — MTD cost, sidebar navigation to Cost & Usage Explorer
+- **`CostUsageExplorerPage`** — Total cost value (with `$`), search input, filtered count
+- **`CommitmentDashboardPage`** — Commitment KPIs, SP/RI charts, Top Unutilized/Expiring tables (via `DataTableComponent`)
+
+### Components
+
+- **`DataTableComponent`** — Reusable table component with `readRows()`, `waitForData()`, `exportToCsv()`, `getRowCount()`. Used by `CommitmentDashboardPage`.
+
+### Fixtures
+
+- **`authenticatedPage`** — Custom fixture via `test.extend()` that logs in once via UI and provides a pre-authenticated page on the dashboard. Used by all journey and export tests.
 
 ## Environment Variables
 
@@ -227,18 +266,18 @@ Manual exploratory testing was performed across all major sections of the platfo
 
 | Section | Status | Data Quality | Automation Potential |
 |---|---|---|---|
-| **Dashboard** | ✅ ✓ Explored | Rich KPI data visible ($121K MTD cost, $197K YTD savings) | Already automated |
-| **Cost & Usage Explorer** | ✅ ✓ Explored | Service search, cost visualization, filters | Already automated |
-| **Budget** | ✅ ✓ Explored | Create Budget disabled, 0/1 budgets, Summary tab available | Read via API, UI confirms disabled |
-| **My Commitments** | ✅ ✓ Explored | 2 expired RIs, KPIs: $163K Net Savings, 99.7% Utilization | Read via API + UI charts verified |
-| **Commitment Dashboard** | ✅ ✓ Explored | 5 SPs (86-100% utilization), savings/waste charts | Automated (new) |
-| **Anomaly Detection** | ✅ ✓ Explored | 6 real anomalies (EC2 $593, GuardDuty $61, Redshift $2,748, etc.) | Automated (new) |
-| **Recommendations** | ✅ ✓ Explored | Waste Detector: -$6,133 potential savings, no recommendations found | Partial API coverage |
-| **Tag Governance** | ✅ ✓ Explored | 0% coverage ($392/$126K tagged), 163K pages of untagged resources | Automated (new) |
-| **CostGPT** | ✅ ✓ Explored | Preset questions available, non-deterministic AI responses | Manual only |
-| **Alerts** | ✅ ✓ Explored | 0 alert rules, Create Alert Rule available (write operation) | Read via API, UI write = manual |
-| **Partner Billing** | ✅ ✓ Explored | Billing Summary with paginated table, CSV/Invoice export | Read via API |
-| **Pricing** | ✅ ✓ Explored | Returns 404 — not implemented | N/A |
+| **Dashboard** | ✅ Explored | Rich KPI data visible ($121K MTD cost, $197K YTD savings) | Already automated |
+| **Cost & Usage Explorer** | ✅ Explored | Service search, cost visualization, filters | Already automated |
+| **Budget** | ✅ Explored | Create Budget disabled, 0/1 budgets, Summary tab available | Read via API + UI confirms disabled |
+| **My Commitments** | ✅ Explored | 2 expired RIs, KPIs: $163K Net Savings, 99.7% Utilization | Read via API + UI charts verified |
+| **Commitment Dashboard** | ✅ Explored | 5 SPs (86-100% utilization), savings/waste charts | Automated |
+| **Anomaly Detection** | ✅ Explored | 6 real anomalies (EC2 $593, GuardDuty $61, Redshift $2,748, etc.) | Automated |
+| **Recommendations** | ✅ Explored | Waste Detector: -$6,133 potential savings, no recommendations found | Partial API coverage |
+| **Tag Governance** | ✅ Explored | 0% coverage ($392/$126K tagged), 163K pages of untagged resources | Automated |
+| **CostGPT** | ✅ Explored | Preset questions available, non-deterministic AI responses | Manual only |
+| **Alerts** | ✅ Explored | 0 alert rules, Create Alert Rule available (write operation) | Read via API, UI write = manual |
+| **Partner Billing** | ✅ Explored | Billing Summary with paginated table, CSV/Invoice export | Read via API |
+| **Pricing** | ✅ Explored | Returns 404 — not implemented | N/A |
 | **Cost Allocation sub-pages** | ⬜ Not explored | Business Mapping, Tag Groups, Enrichment Tags, Filter Group, Views | Pending |
 | **Unit Economics** | ⬜ Not explored | — | Pending |
 

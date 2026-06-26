@@ -17,7 +17,6 @@ export class AuthenticationError extends Error {
     message: string,
     public readonly step: string,
     public readonly status?: number,
-    public readonly responseBody?: string,
   ) {
     super(message);
     this.name = 'AuthenticationError';

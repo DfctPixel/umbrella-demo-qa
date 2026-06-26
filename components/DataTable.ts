@@ -5,9 +5,7 @@ import * as path from 'path';
 /**
  * Reusable DataTable component.
  *
- * Encapsulates common table interactions: reading rows, exporting to CSV,
- * filtering out filter rows. Used by CommitmentDashboardPage and any
- * page with tabular data.
+ * Encapsulates common table interactions.
  */
 export class DataTableComponent {
   constructor(private readonly table: Locator) {}

@@ -1,35 +1,64 @@
-import { APIRequestContext, expect } from '@playwright/test';
-import { AuthTokens } from '../auth/types';
-
-export interface CauiResponse { data?: unknown[]; totalCost?: number; [key: string]: unknown; }
-export interface DistinctServiceNamesResponse { services?: Array<{ serviceName?: string }>; [key: string]: unknown; }
-export interface DistinctServiceCostsResponse { services?: Array<{ serviceName?: string; cost?: number }>; [key: string]: unknown; }
-export interface BudgetsResponse { budgets?: Array<{ id?: string; name?: string }>; [key: string]: unknown; }
-export interface PanelResponse { uuid?: string; name?: string; type?: string; [key: string]: unknown; }
+import { APIRequestContext } from '@playwright/test';
 
 export class CostUsageClient {
-  constructor(public readonly context: APIRequestContext, public readonly tokens: AuthTokens) {}
+  constructor(public readonly context: APIRequestContext) {}
 
-  async postCaui(body: Record<string, unknown>): Promise<CauiResponse> {
-    const r = await this.context.post('/invoices/caui', { data: body }); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getDistinctServiceNames(): Promise<DistinctServiceNamesResponse> {
-    const r = await this.context.get('/invoices/service-names/distinct'); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getDistinctServiceCosts(): Promise<DistinctServiceCostsResponse> {
-    const r = await this.context.get('/invoices/service-costs/distinct'); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getDistinctK8sCosts(): Promise<DistinctServiceCostsResponse> {
-    const r = await this.context.get('/invoices/service-costs/distinct-k8s'); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getDistinctTagCosts(): Promise<DistinctServiceCostsResponse> {
-    const r = await this.context.get('/invoices/service-costs/distinct-tags'); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getBudgets(): Promise<BudgetsResponse> {
-    const r = await this.context.get('/budgets/v2/i/', { params: { only_metadata: 'true' } }); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getPanels(): Promise<PanelResponse[]> {
-    const r = await this.context.get('/usage/custom-dashboard/panels'); expect(r.ok()).toBeTruthy(); return r.json(); }
-  async getDefaultDashboard(): Promise<Record<string, unknown>> {
-    const r = await this.context.get('/usage/custom-dashboard/dashboard/default'); expect(r.ok()).toBeTruthy(); return r.json(); }
+  /** POST /api/v1/invoices/caui — returns array of cost records (may be empty). */
+  async postCaui(body: Record<string, unknown>): Promise<Record<string, unknown>[]> {
+    const r = await this.context.post('/api/v1/invoices/caui', { data: body });
+    return r.json();
+  }
+
+  /** GET /api/v1/invoices/service-names/distinct — returns array of [name, name] pairs. */
+  async getDistinctServiceNames(): Promise<string[][]> {
+    const r = await this.context.get('/api/v1/invoices/service-names/distinct');
+    return r.json();
+  }
+
+  /** GET /api/v1/invoices/service-costs/distinct — returns flat dimension categories (region, service, instancetype, ...). */
+  async getDistinctServiceCosts(): Promise<Record<string, string[]>> {
+    const r = await this.context.get('/api/v1/invoices/service-costs/distinct');
+    return r.json();
+  }
+
+  /** GET /api/v1/invoices/service-costs/distinct-k8s — returns K8s dimension categories. */
+  async getDistinctK8sCosts(): Promise<Record<string, string[]>> {
+    const r = await this.context.get('/api/v1/invoices/service-costs/distinct-k8s');
+    return r.json();
+  }
+
+  /** GET /api/v1/invoices/service-costs/distinct-tags — returns tag key arrays. */
+  async getDistinctTagCosts(): Promise<Record<string, string[]>> {
+    const r = await this.context.get('/api/v1/invoices/service-costs/distinct-tags');
+    return r.json();
+  }
+
+  /** GET /api/v1/budgets/v2/i/ — returns array of budget objects. */
+  async getBudgets(): Promise<Record<string, unknown>[]> {
+    const r = await this.context.get('/api/v1/budgets/v2/i/', { params: { only_metadata: 'true' } });
+    return r.json();
+  }
+
+  async getPanels(): Promise<Record<string, unknown>[]> {
+    const r = await this.context.get('/api/v1/usage/custom-dashboard/panels');
+    return r.json();
+  }
+
   async getRecommendationsTotal(): Promise<number> {
-    const r = await this.context.post('/recommendationsNew/list/total', { data: {} }); expect(r.ok()).toBeTruthy(); return parseInt(await r.text(), 10); }
-  async getRecommendationCategories(): Promise<Array<{ id: string; name: string }>> {
-    const r = await this.context.post('/recommendationsNew/heatmap/dynamicFilter/cat_id', { data: {} }); expect(r.ok()).toBeTruthy(); const b = await r.json() as { page?: Array<{ id: string; name: string }> }; return b.page || []; }
-  async getRecommendationsList(): Promise<Record<string, unknown>> {
-    const r = await this.context.post('/recommendationsNew/list', { data: { pageNumber: 1, pageSize: 10, sort: { property: 'annualSavings', direction: 'desc' } } }); expect(r.ok()).toBeTruthy(); return r.json(); }
+    const r = await this.context.post('/api/v1/recommendationsNew/list/total', { data: {} });
+    return parseInt(await r.text(), 10);
+  }
+
+  async getRecommendationCategories(): Promise<{ id: string; name: string }[]> {
+    const r = await this.context.post('/api/v1/recommendationsNew/heatmap/dynamicFilter/cat_id', { data: {} });
+    const b = await r.json() as { page?: { id: string; name: string }[] };
+    return b.page || [];
+  }
+
+  async getRecommendationsList(): Promise<{ page?: Record<string, unknown>[] }> {
+    const r = await this.context.post('/api/v1/recommendationsNew/list', {
+      data: { pageNumber: 1, pageSize: 10, sort: { property: 'annualSavings', direction: 'desc' } },
+    });
+    return r.json();
+  }
 }

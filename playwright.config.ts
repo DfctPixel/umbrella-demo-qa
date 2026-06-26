@@ -11,9 +11,7 @@ export default defineConfig({
     ['list'],
   ],
   timeout: 60_000,
-  expect: {
-    timeout: 15_000,
-  },
+  expect: { timeout: 15_000 },
   use: {
     baseURL: process.env.BASE_URL || 'https://dev.umbrellacost.dev',
     trace: 'on-first-retry',
@@ -24,11 +22,7 @@ export default defineConfig({
     {
       name: 'api',
       testMatch: '**/api/**/*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        browserName: 'chromium',
-        launchOptions: { headless: true },
-      },
+      use: { ...devices['Desktop Chrome'], browserName: 'chromium', launchOptions: { headless: true } },
     },
     {
       name: 'ui',

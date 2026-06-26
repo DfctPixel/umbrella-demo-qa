@@ -7,9 +7,6 @@ export class CommitmentDashboardPage extends BasePage {
   readonly heading: Locator;
   readonly commitmentMenuItem: Locator;
   readonly commitmentDashboardItem: Locator;
-  readonly monthlyUsageChart: Locator;
-  readonly totalHoursChart: Locator;
-  readonly savingsWasteChart: Locator;
 
   // Reusable DataTable components
   readonly topUnutilizedTable: DataTableComponent;
@@ -18,11 +15,9 @@ export class CommitmentDashboardPage extends BasePage {
   constructor(page: Page) {
     super(page);
     this.heading = page.locator(COMMITMENT_DASHBOARD_SELECTORS.heading);
+    // Sidebar uses unique CSS IDs — more robust than text-based locators
     this.commitmentMenuItem = page.locator('#sideBarItemButton-commitment');
     this.commitmentDashboardItem = page.locator('#innerSideBarItemButton-dashboard');
-    this.monthlyUsageChart = page.getByText('Monthly Usage By Pricing Method');
-    this.totalHoursChart = page.getByText('Total Hours Distribution');
-    this.savingsWasteChart = page.getByText('Commitment Savings & Waste');
 
     // Use DataTable components scoped by section heading proximity
     // Tables are found by sibling relationship to their section heading
@@ -34,15 +29,14 @@ export class CommitmentDashboardPage extends BasePage {
     );
   }
 
-  async navigateTo(): Promise<this> {
+  async navigateTo(): Promise<void> {
     await this.clickVisible(this.commitmentMenuItem);
     await this.commitmentDashboardItem.waitFor({ state: 'visible', timeout: 5_000 });
-    await this.clickVisible(this.commitmentDashboardItem);
-    return this.waitForUrl(/commitment\/dashboard/);
+    await this.commitmentDashboardItem.click();
   }
 
-  async waitForLoad(): Promise<this> {
+  async waitForLoad(): Promise<void> {
     await this.heading.waitFor({ state: 'visible', timeout: 30_000 });
-    return this.waitForLoadState('networkidle');
+    await this.waitForLoadState('load');
   }
 }

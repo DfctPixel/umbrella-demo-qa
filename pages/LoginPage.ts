@@ -7,7 +7,6 @@ export class LoginPage extends BasePage {
   readonly nextButton: Locator;
   readonly loginButton: Locator;
   readonly forgotPasswordLink: Locator;
-  readonly registerLink: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -16,30 +15,29 @@ export class LoginPage extends BasePage {
     this.nextButton = page.getByRole('button', { name: 'Next' });
     this.loginButton = page.getByRole('button', { name: 'Login' });
     this.forgotPasswordLink = page.getByRole('button', { name: 'Forgot password' });
-    this.registerLink = page.getByRole('link', { name: 'Register' });
   }
 
-  async goto() {
+  async goto(): Promise<void> {
     await this.navigate('/log_in');
   }
 
-  async fillEmail(email: string) {
+  async fillEmail(email: string): Promise<void> {
     await this.fillVisible(this.emailInput, email);
   }
 
-  async clickNext() {
+  async clickNext(): Promise<void> {
     await this.clickVisible(this.nextButton);
   }
 
-  async fillPassword(password: string) {
+  async fillPassword(password: string): Promise<void> {
     await this.fillVisible(this.passwordInput, password);
   }
 
-  async clickLogin() {
+  async clickLogin(): Promise<void> {
     await this.clickVisible(this.loginButton);
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string): Promise<void> {
     await this.fillEmail(email);
     await this.clickNext();
     await this.fillPassword(password);

@@ -7,7 +7,7 @@ function normalizeValue(val: string): string {
 }
 
 test.describe('Commitment CSV Export @ui', () => {
-  test('export Top Unutilized table to CSV matching UI data', async ({ page }) => {
+  test('export Top Unutilized table to CSV matching UI data', async ({ authenticatedPage: page }) => {
     const commitmentPage = new CommitmentDashboardPage(page);
     await commitmentPage.navigateTo();
     await commitmentPage.waitForLoad();
@@ -35,7 +35,8 @@ test.describe('Commitment CSV Export @ui', () => {
     }
   });
 
-  test('export Top Expiring table to CSV matching UI data', async ({ page }) => {
+  test('export Top Expiring table to CSV matching UI data', async ({ authenticatedPage: page }) => {
+
     const commitmentPage = new CommitmentDashboardPage(page);
     await commitmentPage.navigateTo();
     await commitmentPage.waitForLoad();
