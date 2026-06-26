@@ -8,6 +8,9 @@ export class CostUsageExplorerPage extends BasePage {
   readonly searchInput: Locator;
   readonly serviceList: Locator;
   readonly filterCount: Locator;
+  readonly chartSvg: Locator;
+  readonly chartBar: Locator;
+  readonly chartTooltip: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -20,11 +23,47 @@ export class CostUsageExplorerPage extends BasePage {
     this.searchInput = page.getByRole('textbox', { name: 'Search' });
     this.serviceList = page.locator('[role="list"]');
     this.filterCount = page.getByText('Presented items');
+
+    // Bar chart (Recharts) — waits for the chart to render
+    this.chartSvg = page.locator('svg').filter({ has: page.locator('.recharts-bar') }).first();
+    this.chartBar = page.locator('.recharts-bar-rectangle path').first();
+    this.chartTooltip = page.locator('.recharts-tooltip-wrapper');
   }
 
   async waitForLoad(): Promise<void> {
     await this.heading.waitFor({ state: 'visible', timeout: 30_000 });
     await this.totalCostLabel.waitFor({ state: 'visible', timeout: 30_000 });
+  }
+
+  async waitForChartReady(): Promise<void> {
+    await this.chartSvg.waitFor({ state: 'visible', timeout: 30_000 });
+    await this.chartBar.waitFor({ state: 'visible', timeout: 15_000 });
+  }
+
+  async hoverOverBar(): Promise<void> {
+    await this.chartBar.hover();
+  }
+
+  async getTooltipInfo(): Promise<{ date: string; total: string }> {
+    await this.hoverOverBar();
+    // Recharts tooltip becomes visible on hover with a short delay
+    await this.chartTooltip.waitFor({ state: 'visible', timeout: 5_000 });
+    // Tooltip format: "Date: May 31\nTotal: $ 5,422.09"
+    // textContent() concatenates all text without newlines, e.g.:
+    // "Date: May 31Total: $ 5,422.09Percent of Total: 39%Amazon Redshift: $ 2,136.16"
+    const text = await this.chartTooltip.textContent();
+    const dateMatch = text?.match(/Date:\s*(\w+\s+\d+)/);   // "May 31"
+    const totalMatch = text?.match(/Total:\s*\$?\s*([\d,.\-]+)/); // "$ 5,422.09"
+    return {
+      date: dateMatch ? dateMatch[1].trim() : '',
+      total: totalMatch ? totalMatch[1].trim() : '',
+    };
+  }
+
+  /** @deprecated Use getTooltipInfo() instead. */
+  async getTooltipTotal(): Promise<string> {
+    const info = await this.getTooltipInfo();
+    return info.total;
   }
 
   async getTotalCostValue(): Promise<string> {

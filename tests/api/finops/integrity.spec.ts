@@ -16,7 +16,7 @@ test.describe('Cross-Domain Invariants @api', () => {
   });
 
   test.afterAll(async () => {
-    await context.dispose();
+    await context?.dispose();
   });
 
   test('recommendations should have non-negative savings', async () => {

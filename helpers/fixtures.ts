@@ -30,7 +30,7 @@ export const test = base.extend<{ authenticatedPage: Page }>({
 
     // Navigate to dashboard and wait for it to be ready
     await page.goto('/dashboard');
-    await page.getByText('MTD cost').waitFor({ state: 'visible', timeout: 30_000 });
+    await page.getByText('MTD cost', { exact: true }).waitFor({ state: 'visible', timeout: 30_000 });
 
     await use(page);
   },

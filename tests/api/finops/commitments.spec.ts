@@ -13,7 +13,7 @@ test.describe('FinOps Commitments @api', () => {
   });
 
   test.afterAll(async () => {
-    await context.dispose();
+    await context?.dispose();
   });
 
   test('should fetch commitment dashboard KPIs', async () => {

@@ -13,7 +13,7 @@ test.describe('Cost Usage @api', () => {
   });
 
   test.afterAll(async () => {
-    await context.dispose();
+    await context?.dispose();
   });
 
   test('should fetch distinct service names', async () => {

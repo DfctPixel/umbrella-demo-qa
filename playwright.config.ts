@@ -55,7 +55,6 @@ export default defineConfig({
         browserName: 'chromium',
         launchOptions: { headless: true },
         viewport: { width: 1920, height: 1080 },
-        // No storageState — login smoke tests need a clean browser
       },
     },
   ],

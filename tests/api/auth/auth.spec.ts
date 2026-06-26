@@ -16,7 +16,7 @@ test.describe('Auth @api', () => {
   });
 
   test.afterAll(async () => {
-    await context.dispose();
+    await context?.dispose();
   });
 
   test('should successfully authenticate and receive JWT + refresh tokens', () => {
