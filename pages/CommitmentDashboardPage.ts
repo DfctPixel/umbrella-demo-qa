@@ -1,7 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { DataTableComponent } from '../components/DataTable';
-import { COMMITMENT_DASHBOARD_SELECTORS } from '../config/selectors';
 
 export class CommitmentDashboardPage extends BasePage {
   readonly heading: Locator;
@@ -14,7 +13,7 @@ export class CommitmentDashboardPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.heading = page.locator(COMMITMENT_DASHBOARD_SELECTORS.heading);
+    this.heading = page.locator('h3:has-text("Commitment Dashboard")');
     // Sidebar uses unique CSS IDs — more robust than text-based locators
     this.commitmentMenuItem = page.locator('#sideBarItemButton-commitment');
     this.commitmentDashboardItem = page.locator('#innerSideBarItemButton-dashboard');
