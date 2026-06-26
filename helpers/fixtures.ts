@@ -1,23 +1,37 @@
 import { test as base, Page } from '@playwright/test';
-import { LoginPage } from '../pages/LoginPage';
-import { DashboardPage } from '../pages/DashboardPage';
-import { USER_EMAIL, USER_PASSWORD } from './auth/types';
 
 /**
- * Authenticated fixture: logs in once via UI and provides a page
- * that is already on the dashboard. Cuts repeated `LoginPage → login()
- * → DashboardPage.waitForDashboardLoad()` from every UI spec's beforeEach.
+ * Authenticated fixture: provides a page that is already on the dashboard.
+ *
+ * Works in two modes:
+ * 1. With `storageState` (journeys & exports) — navigates to dashboard,
+ *    injects sessionStorage (not saved by storageState), and waits for load.
+ * 2. Without `storageState` (login smoke tests) — falls back to UI login.
  */
 export const test = base.extend<{ authenticatedPage: Page }>({
   authenticatedPage: async ({ page }, use) => {
-    const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(USER_EMAIL, USER_PASSWORD);
+    // Navigate to establish origin for storage APIs
+    await page.goto('/log_in');
 
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.waitForDashboardLoad();
+    // Inject sessionStorage (storageState only saves localStorage + cookies)
+    await page.evaluate(() => {
+      const keys = ['dispUserKey', 'authUserKey', 'currDispUserAccountKey', 'currDispUserDivisionId'];
+      for (const key of keys) {
+        const val = localStorage.getItem(key);
+        if (val) sessionStorage.setItem(key, val);
+      }
+      const accountKey = localStorage.getItem('currDispUserAccountKey');
+      if (accountKey) {
+        const currencyKey = `processingCurrencyCode-${accountKey}`;
+        const val = localStorage.getItem(currencyKey);
+        if (val) sessionStorage.setItem(currencyKey, val);
+      }
+    });
 
-    // Provide the authenticated page to the test
+    // Navigate to dashboard and wait for it to be ready
+    await page.goto('/dashboard');
+    await page.getByText('MTD cost').waitFor({ state: 'visible', timeout: 30_000 });
+
     await use(page);
   },
 });

@@ -5,3 +5,4 @@ playwright/.cache/
 .env
 *.log
 .allure/
+storageState.json
