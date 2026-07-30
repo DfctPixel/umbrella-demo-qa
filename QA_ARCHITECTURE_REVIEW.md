@@ -109,6 +109,8 @@ The `.gitattributes` proposal is directionally correct and removes the previous 
 
 The committed `.gitattributes` policy resolves the previous review item's repository-line-ending concern.
 
+**CI confirmation:** run 30574813631 for `c84fa64` completed with failure. API authentication and UI setup both fail capability resolution because the referenced `QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID` repository secrets have not been configured. This is an environment/CI configuration blocker, not evidence that the new workflow wiring works.
+
 ### 2026-07-30 — review of commit `d014380`
 
 **CI:** [run 30575062860](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30575062860) is in progress at review time.
