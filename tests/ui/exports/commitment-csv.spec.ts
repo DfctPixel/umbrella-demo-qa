@@ -10,11 +10,6 @@ test.describe('Commitment CSV Export @ui', () => {
    *
    * Verified export contract (2026-07-30): {EndDateTime, SavingsPlanARN,
    * UsedCommitment, TotalCommitment}.
-   *
-   * The composite key uses SavingsPlanARN (unique per commitment) rather
-   * than a UI-displayed account name, because the export may omit the
-   * account identifier column.  If the CSV does expose an account-like
-   * header, it is included in the key when present.
    */
   const CSV_HEADERS = {
     commitment:       'SavingsPlanARN',
@@ -36,6 +31,35 @@ test.describe('Commitment CSV Export @ui', () => {
 
   function detectAccountHeader(csvHeaders: string[]): string | null {
     return ACCOUNT_HEADER_CANDIDATES.find(h => csvHeaders.includes(h)) ?? null;
+  }
+
+  /**
+   * Normalize a date from either format to ISO day string "YYYY-MM-DD".
+   * - CSV: "2024-07-01T00:00:00" → "2024-07-01"
+   * - UI:  "07/01/2024"           → "2024-07-01"
+   * Throws on unrecognised input.
+   */
+  function normalizeDate(raw: string): string {
+    const s = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    throw new Error(`Cannot normalise date: "${raw}"`);
+  }
+
+  /**
+   * Parse a raw CSV amount as a finite positive number.
+   * Throws on NaN, Infinity, or non-string input.
+   */
+  function strictParseAmount(raw: string): number {
+    if (typeof raw !== 'string' || raw.trim() === '') {
+      throw new Error(`Amount must be a non-empty string, got ${typeof raw}`);
+    }
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(`Amount must be a finite non-negative number, got "${raw}" (${n})`);
+    }
+    return n;
   }
 
   async function verifyExport(
@@ -67,51 +91,69 @@ test.describe('Commitment CSV Export @ui', () => {
 
     const csvAccountField = detectAccountHeader(csvHeaders);
 
-    // Build UI lookup key: primary key is commitment name, fall back to
-    // account+commitment+expiry when all three are available.
-    const uiByKey = new Map<string, Record<string, string>>();
+    // Build two UI indexes:
+    //   fullKey  — "account::ARN::date" (when account is populated)
+    //   arnKey   — "ARN" alone (fallback for CSV exports without account column)
+    // Both point to the same UI row so whichever key the CSV side builds will match.
+    const uiByFullKey = new Map<string, Record<string, string>>();
+    const uiByArnKey  = new Map<string, Record<string, string>>();
     for (const row of uiRows) {
       const commitment = normalize(row['Commitment'] || '');
       const account    = normalize(row['Linked Account'] || '');
       const expiry     = normalize(row['Expiration Date'] || '');
-      const key = account ? `${account}::${commitment}::${expiry}` : commitment;
-      if (key) uiByKey.set(key, row);
+      if (account) {
+        uiByFullKey.set(`${account}::${commitment}::${expiry}`, row);
+      }
+      if (commitment) {
+        uiByArnKey.set(commitment, row);
+      }
     }
 
     for (const csvRow of csvRows) {
-      const csvCommit = normalize(csvRow[CSV_HEADERS.commitment] || '');
-      const csvExpiry = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
+      const csvCommit  = normalize(csvRow[CSV_HEADERS.commitment] || '');
+      const csvExpiry  = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
 
-      // Build CSV-side key. Use account field when available.
+      expect(csvCommit, 'CSV row must have a SavingsPlanARN').toBeTruthy();
+
+      // Look up the UI row: prefer the full composite-key index when the CSV
+      // carries an account column; fall back to the ARN-only index otherwise.
       const csvAccount = csvAccountField ? normalize(csvRow[csvAccountField] || '') : '';
-      const key = csvAccount ? `${csvAccount}::${csvCommit}::${csvExpiry}` : csvCommit;
+      const fullKey    = csvAccount ? `${csvAccount}::${csvCommit}::${csvExpiry}` : '';
+      let uiRow        = fullKey ? uiByFullKey.get(fullKey) : undefined;
+      if (!uiRow) {
+        uiRow = uiByArnKey.get(csvCommit);
+      }
+      expect(uiRow, `CSV row "${csvCommit}" must have a matching UI row`).toBeDefined();
 
-      expect(key, 'CSV row must have at minimum a SavingsPlanARN').toBeTruthy();
-
-      const uiRow = uiByKey.get(key);
-      expect(uiRow, `CSV row "${key}" must have a matching UI row`).toBeDefined();
-
-      // Text fields
-      expect(csvCommit, `Commitment mismatch for ${key}`)
+      // Text field: commitment (ARN) — must match
+      expect(csvCommit, `Commitment mismatch for ${csvCommit}`)
         .toBe(normalize(uiRow!['Commitment'] || ''));
 
-      // Expiration Date comparison: ISO date in CSV vs UI display label
-      const csvDate = new Date(csvExpiry).toISOString().slice(0, 10);
-      const uiParts = (uiRow!['Expiration Date'] || '').split('/');
-      const uiDate = uiParts.length === 3
-        ? `${uiParts[2]}-${uiParts[0].padStart(2, '0')}-${uiParts[1].padStart(2, '0')}`
-        : csvExpiry;
-      expect(csvDate, `Expiration Date mismatch for ${key}`).toBe(uiDate);
+      // Date field: normalise both sides to "YYYY-MM-DD"
+      const csvDate = normalizeDate(csvExpiry);
+      const uiDate  = normalizeDate(uiRow!['Expiration Date'] || '');
+      expect(csvDate, `Expiration Date mismatch for ${csvCommit}`).toBe(uiDate);
 
       // Utilization = used / total × 100
-      const used  = parseFloat(csvRow[CSV_HEADERS.usedAmount] || '0');
-      const total = parseFloat(csvRow[CSV_HEADERS.totalAmount] || '0');
-      const csvUtilPct = total > 0 ? (used / total) * 100 : 0;
+      const used        = strictParseAmount(csvRow[CSV_HEADERS.usedAmount] || '');
+      const total       = strictParseAmount(csvRow[CSV_HEADERS.totalAmount] || '');
+      const csvUtilPct  = total > 0 ? (used / total) * 100 : 0;
 
       const uiPct = parseFloat((uiRow!['Utilization Percent'] || '').replace(/[^0-9.]/g, ''));
       expect(Math.abs(csvUtilPct - uiPct),
-        `Utilization mismatch for ${key}: CSV=${csvUtilPct.toFixed(2)}% UI=${uiPct.toFixed(2)}%`)
+        `Utilization mismatch for ${csvCommit}: CSV=${csvUtilPct.toFixed(2)}% UI=${uiPct.toFixed(2)}%`)
         .toBeLessThanOrEqual(0.5);
+    }
+
+    // When the CSV has no account column, verify that the ARN-only index is
+    // unambiguous (each ARN maps to exactly one UI row).
+    if (!csvAccountField) {
+      for (const [arn, row] of uiByArnKey) {
+        expect(
+          Array.from(uiByArnKey.values()).filter(r => r === row).length,
+          `ARN "${arn}" must be unique in the UI table to serve as a lookup key`,
+        ).toBe(1);
+      }
     }
   }
 
