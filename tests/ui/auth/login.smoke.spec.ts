@@ -17,9 +17,14 @@ test.describe('Login Smoke @ui', () => {
 
   test('forgot password link visible on password step', async ({ page }) => {
     const loginPage = new LoginPage(page);
+
     await loginPage.goto();
     await loginPage.fillEmail(USER_EMAIL);
+
+    await expect(loginPage.nextButton, 'Next button should be enabled after filling email').toBeEnabled();
     await loginPage.clickNext();
+
+    await expect(loginPage.passwordInput, 'password input must be visible (transition to password step)').toBeVisible({ timeout: 10_000 });
     await expect(loginPage.forgotPasswordLink).toBeVisible({ timeout: 10_000 });
   });
 });

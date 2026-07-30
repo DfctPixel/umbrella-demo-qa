@@ -1,4 +1,4 @@
-import { Locator } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -65,7 +65,7 @@ export class DataTableComponent {
    */
   async exportToCsv(
     exportButton: Locator,
-    page: any,
+    page: Page,
     fileName: string
   ): Promise<Record<string, string>[]> {
     const [download] = await Promise.all([

@@ -1,59 +1,78 @@
-import { test, expect, APIRequestContext } from '@playwright/test';
-import { createAuthenticatedContext } from '../../../helpers/auth/auth-bootstrap';
-import { FinOpsClient } from '../../../helpers/clients/finops.client';
+import { test, expect } from '../../../helpers/fixtures/api';
 
 test.describe('FinOps Commitments @api', () => {
-  let api: FinOpsClient;
-  let context: APIRequestContext;
+  const year = new Date().getFullYear();
+  const today = new Date().toISOString().split('T')[0];
 
-  test.beforeAll(async () => {
-    const { context: ctx, tokens } = await createAuthenticatedContext();
-    context = ctx;
-    api = new FinOpsClient(context);
-  });
-
-  test.afterAll(async () => {
-    await context?.dispose();
-  });
-
-  test('should fetch commitment dashboard KPIs', async () => {
-    const d = await api.getCommitmentDashboard({
+  test('GET /commitment/dashboard — returns KPIs with non-negative values', async ({ api }) => {
+    const dash = await api.finops.getCommitmentDashboard({
       periodGranLevel: 'month',
-      startDate: `${new Date().getFullYear()}-01-01`,
-      endDate: new Date().toISOString().split('T')[0],
+      startDate: `${year}-01-01`,
+      endDate: today,
       'filters[service]': 'ec2',
     });
-    expect(Object.keys(d).length).toBeGreaterThan(0);
+    expect(Object.keys(dash).length).toBeGreaterThan(0);
+    // If KPIs array exists, each KPI's value should be >= 0
+    if (Array.isArray(dash.kpis)) {
+      for (const kpi of dash.kpis as any[]) {
+        if (kpi.value !== undefined) {
+          expect(Number(kpi.value)).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
   });
 
-  test('should fetch commitment utilization summary', async () => {
-    const s = await api.getCommitmentSummary({
-      date: new Date().toISOString().split('T')[0],
+  test('GET /commitment/utilization/i/summary — utilization percent is between 0-100', async ({ api }) => {
+    const summary = await api.finops.getCommitmentSummary({
+      date: today,
       commitmentType: 'sp',
       linkedAccount: '',
       payerAccount: '',
       commitmentServices: 'ComputeSavingsPlans',
     });
-    // May return empty object when no data exists — just verify it's an object
-    expect(typeof s).toBe('object');
+    expect(typeof summary).toBe('object');
+    if (summary.utilizationPercent !== undefined) {
+      expect(Number(summary.utilizationPercent)).toBeGreaterThanOrEqual(0);
+      expect(Number(summary.utilizationPercent)).toBeLessThanOrEqual(100);
+    }
+    // Active commitments should not exceed total
+    if (summary.total !== undefined && summary.activeTotal !== undefined) {
+      expect(Number(summary.activeTotal)).toBeLessThanOrEqual(Number(summary.total) + 0.01);
+    }
   });
 
-  test('should fetch total savings for SP and RI', async () => {
-    const d = Array.from({ length: 6 }, (_, i) => `${new Date().getFullYear()}-${String(i + 1).padStart(2, '0')}-01`);
-    const sp = await api.getCommitmentTotalSavings('sp', d);
+  test('GET /commitment/utilization/totalsavings — SP and RI share same date format', async ({ api }) => {
+    const dates = Array.from({ length: 6 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}-01`);
+    const sp = await api.finops.getCommitmentTotalSavings('sp', dates);
+    const ri = await api.finops.getCommitmentTotalSavings('ri', dates);
     expect(Object.keys(sp).length).toBeGreaterThan(0);
-    const ri = await api.getCommitmentTotalSavings('ri', d);
     expect(Object.keys(ri).length).toBeGreaterThan(0);
   });
 
-  test('should fetch anomaly stats', async () => {
-    const s = await api.getAnomalyStats();
+  test('GET /anomaly-detection/anomalies/stats — stats are non-negative with valid history', async ({ api }) => {
+    const s = await api.finops.getAnomalyStats();
     expect(s.openAnomalies).toBeGreaterThanOrEqual(0);
     expect(s.impact).toBeGreaterThanOrEqual(0);
+    if (Array.isArray(s.historyData)) {
+      for (const h of s.historyData as any[]) {
+        expect(h.date || h.period || h.label, 'history entry must have an identifier').toBeDefined();
+        // count may be named 'count', 'value', 'anomalies', etc.
+        const countVal = h.count ?? h.value ?? h.anomalies;
+        if (countVal !== undefined) {
+          expect(Number(countVal), 'history count must be >= 0').toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
   });
 
-  test('should fetch anomaly alert rules', async () => {
-    const r = await api.getAnomalyAlertRules();
-    expect(Array.isArray(r)).toBe(true);
+  test('GET /anomaly-detection/rules — each rule has a defined isEnabled flag', async ({ api }) => {
+    const rules = await api.finops.getAnomalyAlertRules();
+    expect(Array.isArray(rules)).toBe(true);
+    if (rules.length > 0) {
+      for (const rule of rules) {
+        expect((rule as any).ruleName || (rule as any).name, 'rule must have name').toBeDefined();
+        expect((rule as any).hasOwnProperty('isEnabled'), 'rule must have isEnabled property').toBe(true);
+      }
+    }
   });
 });

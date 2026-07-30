@@ -10,7 +10,7 @@ export class DashboardPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.mtdCost = page.getByText('MTD cost');
+    this.mtdCost = page.getByRole('heading', { name: 'MTD cost', level: 5, exact: true });
 
     // Sidebar uses unique CSS IDs — more robust than text-based locators
     this.costAndUsageMenuItem = page.locator('#sideBarItemButton-costAndUsage');

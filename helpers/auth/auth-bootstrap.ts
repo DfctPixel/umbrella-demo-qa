@@ -1,9 +1,12 @@
 import { request, APIRequestContext } from '@playwright/test';
-import { API_URL, USER_EMAIL, USER_PASSWORD, AuthTokens, AuthenticationError } from './types';
-import { buildApikey, ANONYMOUS_APIKEY } from './apikey';
+import { API_URL, USER_EMAIL, USER_PASSWORD, AuthTokens, TenantCapability, AuthenticationError } from './types';
+import { buildApikey, resolveTenantCapability, ANONYMOUS_APIKEY } from './apikey';
 
-export async function authenticate(): Promise<{ tokens: AuthTokens; requestContext: APIRequestContext }> {
-  // Temporary anonymous context for the auth flow
+export async function authenticate(): Promise<{
+  tokens: AuthTokens;
+  requestContext: APIRequestContext;
+  capability: TenantCapability;
+}> {
   const anon = await request.newContext({
     baseURL: new URL(API_URL).origin,
     extraHTTPHeaders: { 'Content-Type': 'application/json', apikey: ANONYMOUS_APIKEY },
@@ -23,7 +26,6 @@ export async function authenticate(): Promise<{ tokens: AuthTokens; requestConte
 
     const signinCookie = (signinRes.headers()['set-cookie'] || '').split(';')[0];
 
-    // Call signin-with-token to establish a server-side session cookie
     const stRes = await anon.post('/api/v1/users/signin-with-token', {
       headers: {
         authorization: tokens.jwtToken,
@@ -34,7 +36,8 @@ export async function authenticate(): Promise<{ tokens: AuthTokens; requestConte
     });
     const stCookie = stRes.ok() ? (stRes.headers()['set-cookie'] || '').split(';')[0] : '';
 
-    const apikey = await buildApikey(tokens.jwtToken, anon);
+    const capability = await resolveTenantCapability(tokens.jwtToken, anon);
+    const apikey = buildApikey(capability.userKey, capability.accountKey, capability.accountTypeId);
     const apiOrigin = new URL(API_URL).origin;
 
     const context = await request.newContext({
@@ -49,13 +52,17 @@ export async function authenticate(): Promise<{ tokens: AuthTokens; requestConte
       },
     });
 
-    return { tokens, requestContext: context };
+    return { tokens, requestContext: context, capability };
   } finally {
     await anon.dispose();
   }
 }
 
-export async function createAuthenticatedContext(): Promise<{ context: APIRequestContext; tokens: AuthTokens }> {
-  const { tokens, requestContext } = await authenticate();
-  return { context: requestContext, tokens };
+export async function createAuthenticatedContext(): Promise<{
+  context: APIRequestContext;
+  tokens: AuthTokens;
+  capability: TenantCapability;
+}> {
+  const { tokens, requestContext, capability } = await authenticate();
+  return { context: requestContext, tokens, capability };
 }
