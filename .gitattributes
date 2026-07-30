@@ -1,0 +1,10 @@
+# Repository-wide line-ending policy.
+# Git normalises all text files to LF in the index and checks them out
+# as LF on Linux/macOS or CRLF on Windows (core.autocrlf behaviour).
+* text=auto
+
+# Declared binary files are never normalised.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

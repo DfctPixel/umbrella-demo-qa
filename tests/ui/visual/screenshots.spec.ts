@@ -9,15 +9,18 @@ test.describe('Visual Regression @visual', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.waitForDashboardLoad();
 
-    // The MTD cost heading is our stable KPI anchor — mask its dynamic value
-    await expect(dashboardPage.mtdCost.first()).toBeVisible();
+    // Scope to the MTD cost heading's section container instead of #root,
+    // which captures the full page including sensitive account/user data.
+    const kpiHeading = dashboardPage.mtdCost;
+    await expect(kpiHeading).toBeVisible();
 
-    // Screenshot the top navigation + KPI region, masking volatile numbers
-    const kpiRegion = page.locator('#root').first();
-    await expect(kpiRegion).toHaveScreenshot('dashboard-kpis.png', {
+    // Walk up to the KPI card container (parent of the heading's parent card).
+    // This avoids capturing sidebar, top nav, tables, and user identifiers.
+    const kpiCard = kpiHeading.locator('..');
+    await expect(kpiCard).toHaveScreenshot('dashboard-kpis.png', {
       mask: [
-        page.locator('[class*="kpi"]').getByText(/^\$/),
-        page.locator('[class*="kpi"]').getByText(/%/),
+        kpiCard.locator('*').getByText(/^\$/),
+        kpiCard.locator('*').getByText(/%/),
       ],
       threshold: 0.05,
     });
@@ -33,7 +36,6 @@ test.describe('Visual Regression @visual', () => {
 
     await expect(costUsagePage.chartSvg).toBeVisible();
 
-    // Mask tooltip and axis tick labels — these render dynamic financial values
     await expect(costUsagePage.chartSvg).toHaveScreenshot('cost-usage-chart.png', {
       mask: [
         costUsagePage.chartTooltip,
@@ -53,7 +55,6 @@ test.describe('Visual Regression @visual', () => {
     const sectionHeading = page.getByText('Top 10 Unutilized Commitment');
     await expect(sectionHeading).toBeVisible({ timeout: 10_000 });
 
-    // Screenshot the full section, masking dynamic percentage and date values
     const section = sectionHeading.locator('..').locator('..');
     await expect(section).toHaveScreenshot('commitment-unutilized-section.png', {
       mask: [
