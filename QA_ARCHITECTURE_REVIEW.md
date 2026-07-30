@@ -1,42 +1,72 @@
-# QA Architecture Review
+# QA Review Handoff
 
-## Outcome
+This is the durable handoff between the QA reviewer and the implementation agent. Read it before making framework changes. Do not mark an item resolved without recording the command output that verifies it.
 
-The expanded API, integration, schema, and contract-test solution is retained. The suite now contains **140 tests in 17 spec files**. The full retained suite completed successfully against the configured QA environment; TypeScript compilation also passes.
+## Current status
 
-The review removed only checks that did not establish a stable, documented product contract. It did not remove API or contract coverage simply because an endpoint is variable or read-only.
+**Review target:** `49cb21c` — `refactor: setup-project architecture, worker-scoped API fixture, tenant capability resolution`
+**Decision:** Changes requested
 
-## Changes made during the review
+### Verified gates
 
-- Fixed four TypeScript defects in the expanded suite: two invalid `expect.fail` calls, an optional anomaly-stat type, and the `plain-sub-users` response type.
-- Capped the API project at four workers because the shared QA tenant produced a concurrency-only failure under the previous full-suite load. A focused repeat run passed; the cap prevents the test suite from creating artificial throttling.
-- Kept the contract suite and tagged its latency/body-size probes as `@performance`, separating timing checks from functional contracts.
-- Removed 14 low-signal checks: one permanently skipped identity check and 13 assertions that accepted incompatible outcomes, only asserted an optional header/type, or tolerated server errors as valid input validation.
-- Fixed the Cost & Usage chart/API comparison to normalize zero-padded UI dates before reconciling chart data with the per-service API response.
+| Gate | Result |
+| --- | --- |
+| `npx tsc --noEmit` | Passed |
+| API project | 133 passed |
+| ESLint | 0 errors, 88 `playwright/no-conditional-in-test` warnings |
+| UI, UI exports, and UI login projects | 5 passed, 3 failed |
+| Visual project | 2 visual tests passed; dashboard KPI snapshot missing a committed baseline |
+| `git diff --check HEAD^ HEAD` | Fails for CRLF text added in this commit under the current Git configuration |
 
-## Coverage assessment
+## Open review items
 
-| Area | Assessment | Notes |
-| --- | --- | --- |
-| Authentication and authorization | High | Token, invalid credential, and invalid-token paths are covered. |
-| Cost and usage | High | CAUI, service dimensions, budgets, recommendation data, and UI/API reconciliation are covered. |
-| Recommendations | High | List, categories, filters, and integrity checks are covered. |
-| Platform and account configuration | Medium | Read models are covered; role and mutation workflows are not. |
-| Monitoring and FinOps | Medium | Read/integrity paths are covered; alert lifecycle and write actions are not. |
-| API contracts | Medium | Status, shape, and cross-endpoint checks are useful, but they are not yet backed by a versioned OpenAPI source of truth. |
-| UI journeys and CSV export | Medium | Primary cost journey is strong; export mapping and accessibility need more deterministic coverage. |
+### P0 — Visual snapshot must not capture live tenant data
 
-## Remaining technical debt and recommendations
+`tests/ui/visual/screenshots.spec.ts:16` screenshots `#root`, which captures the full dashboard rather than KPI cards. The generated image contains a real user email, account identifier, invoice date, cost data, charts, and tables.
 
-1. **Replace conditional assertions with explicit contracts.** ESLint reports 105 `playwright/no-conditional-in-test` warnings. Most come from optional-field checks against environment-dependent data. Make required fields/statuses part of an OpenAPI contract, create deterministic fixture data, and turn each conditional into either a direct assertion or a documented precondition skip.
-2. **Publish a versioned API specification.** Generate schema/contract tests from OpenAPI (required fields, enums, error payloads, status codes) rather than maintaining inferred shapes in test code.
-3. **Split execution lanes.** Run a small API/UI smoke suite on pull requests, the full contract/integration suite after merge, and `@performance` probes on a scheduled environment with defined SLOs.
-4. **Use a resettable QA tenant for mutations.** This enables budget, alert, dashboard, and permission CRUD tests with reliable setup and cleanup instead of leaving write coverage role-gated.
-5. **Move API lifecycle into a Playwright worker fixture.** The current shared API fixture is practical, but a worker-scoped fixture with disposal makes authentication/context ownership explicit and prevents context leaks.
-6. **Strengthen UI quality signals.** Add accessibility assertions for critical flows and make CSV checks validate an explicit API-to-export field mapping rather than UI text alone.
+- Scope the screenshot to a stable KPI container (prefer a product-owned test id or semantic region).
+- Mask or avoid account/user identifiers, dates, currency values, charts, tables, and other volatile or tenant-specific data.
+- Prefer a sanitized visual-regression tenant.
+- Manually review the generated baseline before committing it. Do **not** commit the currently generated `dashboard-kpis-ui-visual-win32.png` unchanged.
 
-## Verification
+### P0 — CSV reconciliation uses UI labels that are not export headers
 
-- `npx tsc --noEmit` — passed.
-- Full retained Playwright suite against QA — passed (140 tests).
-- ESLint — 0 errors, 105 warnings; warnings are intentionally left visible as follow-up work.
+`tests/ui/exports/commitment-csv.spec.ts:7-64` requires headers such as `Linked Account` and `Commitment`, but the actual export has raw contract fields including `EndDateTime` and `SavingsPlanARN`. Both export tests fail before any row comparison.
+
+- Agree the export contract with the product/API owner.
+- Add one explicit raw-CSV-to-canonical/UI field mapping, including a defined calculation for utilization where needed.
+- Validate that mapping, then form the composite key and compare normalized canonical values.
+- Do not remove header assertions merely to make the tests pass.
+
+### P1 — Chart API/UI test does not distinguish no capture from an empty response
+
+`tests/ui/journeys/cost-usage.spec.ts:50-80` initializes the capture to `[]` but never asserts `chartCaptured`. The observed failure could therefore be an unmatched route predicate or a real empty API response. The test also assumes the live default period always has cost data.
+
+- Assert that the intended CAUI request was captured.
+- Run the value-comparison case against a deterministic date range and known-data/sanitized tenant.
+- Keep structural checks valid for an empty response only where the product contract permits emptiness.
+
+### P2 — Make the whitespace gate repository-defined
+
+New CRLF files cause `git diff --check HEAD^ HEAD` to flag every added line as trailing whitespace under the current configuration.
+
+- Add and document a repository `.gitattributes` line-ending policy, then normalize affected text deliberately; or configure the CI whitespace rule consistently for the repository's chosen line endings.
+
+## Required CI verification after fixes
+
+```powershell
+npx tsc --noEmit
+npm run lint
+git diff --check HEAD^ HEAD
+npx playwright test --project=api --reporter=dot
+npx playwright test --project=ui --project=ui-exports --project=ui-login --reporter=dot
+npm run test:visual -- --project=ui-visual --reporter=dot
+```
+
+CI must execute these checks for each implementation commit. The reviewer monitor records the CI run URL/status and exact pass/fail totals; it does not run this suite locally. Record any intentional expected failures in the next review entry.
+
+## Review history
+
+### 2026-07-30 — commit `49cb21c`
+
+The API architecture changes are validated by a 133/133 API pass. This review found three runtime test blockers (two CSV exports and the Cost & Usage API/UI reconciliation), an unapproved/sensitive visual-baseline risk, and a repository line-ending gate inconsistency. The next implementation commit should address the open items above without staging generated screenshots or unrelated files.
