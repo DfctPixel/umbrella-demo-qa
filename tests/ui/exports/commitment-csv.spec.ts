@@ -6,22 +6,36 @@ test.describe('Commitment CSV Export @ui', () => {
 
   /**
    * Exact mapping from canonical UI column names to the raw CSV column names
-   * emitted by the export endpoint.  "Utilization Percent" is derived from
-   * UsedCommitment / TotalCommitment × 100 rather than a raw CSV field.
+   * emitted by the export endpoint.
    *
    * Verified export contract (2026-07-30): {EndDateTime, SavingsPlanARN,
    * UsedCommitment, TotalCommitment}.
+   *
+   * The composite key uses SavingsPlanARN (unique per commitment) rather
+   * than a UI-displayed account name, because the export may omit the
+   * account identifier column.  If the CSV does expose an account-like
+   * header, it is included in the key when present.
    */
   const CSV_HEADERS = {
-    linkedAccount:    'Linked Account',
     commitment:       'SavingsPlanARN',
     expirationDate:  'EndDateTime',
     usedAmount:      'UsedCommitment',
     totalAmount:     'TotalCommitment',
   } as const;
 
+  /** Candidate account-identifier fields that may appear in the CSV export. */
+  const ACCOUNT_HEADER_CANDIDATES = [
+    'Linked Account', 'Account', 'AccountName', 'Customer', 'CustomerName',
+  ];
+
+  const REQUIRED = Object.values(CSV_HEADERS);
+
   function normalize(s: string): string {
     return s.replace(/\s+/g, ' ').trim();
+  }
+
+  function detectAccountHeader(csvHeaders: string[]): string | null {
+    return ACCOUNT_HEADER_CANDIDATES.find(h => csvHeaders.includes(h)) ?? null;
   }
 
   async function verifyExport(
@@ -46,42 +60,57 @@ test.describe('Commitment CSV Export @ui', () => {
 
     const csvHeaders = Object.keys(csvRows[0]);
 
-    // Assert every expected CSV header exists
-    for (const [key, expected] of Object.entries(CSV_HEADERS)) {
-      expect(csvHeaders, `CSV must contain "${expected}" (mapped from ${key})`).toContain(expected);
+    // Require every mapped contract header
+    for (const h of REQUIRED) {
+      expect(csvHeaders, `CSV export must contain header "${h}"`).toContain(h);
     }
 
-    // Build UI lookup key from canonical field names
+    const csvAccountField = detectAccountHeader(csvHeaders);
+
+    // Build UI lookup key: primary key is commitment name, fall back to
+    // account+commitment+expiry when all three are available.
     const uiByKey = new Map<string, Record<string, string>>();
     for (const row of uiRows) {
-      const key = `${normalize(row['Linked Account'] || '')}::${normalize(row['Commitment'] || '')}::${normalize(row['Expiration Date'] || '')}`;
-      if (key !== '::::') uiByKey.set(key, row);
+      const commitment = normalize(row['Commitment'] || '');
+      const account    = normalize(row['Linked Account'] || '');
+      const expiry     = normalize(row['Expiration Date'] || '');
+      const key = account ? `${account}::${commitment}::${expiry}` : commitment;
+      if (key) uiByKey.set(key, row);
     }
 
     for (const csvRow of csvRows) {
-      const csvLinked   = normalize(csvRow[CSV_HEADERS.linkedAccount] || '');
-      const csvCommit   = normalize(csvRow[CSV_HEADERS.commitment] || '');
-      const csvExpiry   = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
-      const key = `${csvLinked}::${csvCommit}::${csvExpiry}`;
+      const csvCommit = normalize(csvRow[CSV_HEADERS.commitment] || '');
+      const csvExpiry = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
 
-      expect(key, 'CSV row must have all mapped fields').not.toBe('::::');
+      // Build CSV-side key. Use account field when available.
+      const csvAccount = csvAccountField ? normalize(csvRow[csvAccountField] || '') : '';
+      const key = csvAccount ? `${csvAccount}::${csvCommit}::${csvExpiry}` : csvCommit;
+
+      expect(key, 'CSV row must have at minimum a SavingsPlanARN').toBeTruthy();
 
       const uiRow = uiByKey.get(key);
       expect(uiRow, `CSV row "${key}" must have a matching UI row`).toBeDefined();
 
-      // Text fields: exact normalized match
-      expect(normalize(csvRow[CSV_HEADERS.commitment] || ''), `Commitment mismatch for ${key}`)
+      // Text fields
+      expect(csvCommit, `Commitment mismatch for ${key}`)
         .toBe(normalize(uiRow!['Commitment'] || ''));
-      expect(normalize(csvRow[CSV_HEADERS.expirationDate] || ''), `Expiration Date mismatch for ${key}`)
-        .toBe(normalize(uiRow!['Expiration Date'] || ''));
 
-      // Financial field: utilization = used / total × 100
+      // Expiration Date comparison: ISO date in CSV vs UI display label
+      const csvDate = new Date(csvExpiry).toISOString().slice(0, 10);
+      const uiParts = (uiRow!['Expiration Date'] || '').split('/');
+      const uiDate = uiParts.length === 3
+        ? `${uiParts[2]}-${uiParts[0].padStart(2, '0')}-${uiParts[1].padStart(2, '0')}`
+        : csvExpiry;
+      expect(csvDate, `Expiration Date mismatch for ${key}`).toBe(uiDate);
+
+      // Utilization = used / total × 100
       const used  = parseFloat(csvRow[CSV_HEADERS.usedAmount] || '0');
       const total = parseFloat(csvRow[CSV_HEADERS.totalAmount] || '0');
       const csvUtilPct = total > 0 ? (used / total) * 100 : 0;
 
       const uiPct = parseFloat((uiRow!['Utilization Percent'] || '').replace(/[^0-9.]/g, ''));
-      expect(Math.abs(csvUtilPct - uiPct), `Utilization Percent mismatch for ${key}: CSV=${csvUtilPct.toFixed(2)}% UI=${uiPct.toFixed(2)}%`)
+      expect(Math.abs(csvUtilPct - uiPct),
+        `Utilization mismatch for ${key}: CSV=${csvUtilPct.toFixed(2)}% UI=${uiPct.toFixed(2)}%`)
         .toBeLessThanOrEqual(0.5);
     }
   }

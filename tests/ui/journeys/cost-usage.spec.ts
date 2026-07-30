@@ -81,10 +81,12 @@ test.describe('Cost & Usage Journey @ui', () => {
     expect(chartCaptured, 'chart CAUI request must have been intercepted by the route handler').toBe(true);
 
     // When the tenant has no Daily/service costs for the default period the
-    // chart data may be empty.  Skip the value-comparison section explicitly
-    // so it is not mistaken for a passing assertion.
+    // chart data may be empty.  Mark the value-comparison explicitly so CI
+    // tracking distinguishes "ran and passed" from "precondition not met".
+    // TODO: configure a deterministic date range on a known-data QA tenant
+    // so this case is always exercised.
     if (chartCauiBody.length === 0) {
-      test.skip(true, 'No cost data available for the default period — run with a known-data date range');
+      test.skip(true, 'No cost data for the default period — provision a backfilled QA tenant');
       return;
     }
 
