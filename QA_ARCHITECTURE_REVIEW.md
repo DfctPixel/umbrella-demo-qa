@@ -108,3 +108,11 @@ The `.gitattributes` proposal is directionally correct and removes the previous 
 3. **P1 — visual gate remains intentionally red until a new baseline exists.** Deleting the full-page baseline removes sensitive data, but a new card-scoped, redacted baseline must be manually reviewed and committed before the visual project can be required to pass.
 
 The committed `.gitattributes` policy resolves the previous review item's repository-line-ending concern.
+
+### 2026-07-30 — review of commit `d014380`
+
+**CI:** [run 30575062860](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30575062860) is in progress at review time.
+
+1. **P0 — the new fallback key cannot match the UI index.** UI rows with a populated `Linked Account` are stored only under `account::SavingsPlanARN::expiry`, while a CSV without an account field looks them up by `SavingsPlanARN` alone. The lookup will therefore fail even when the ARN is correct. Create both indexes, select the index based on CSV capabilities, and assert that the ARN-only index is unique before using it as a key.
+2. **P1 — normalize dates and amounts before comparison.** `new Date(csvExpiry).toISOString()` throws for invalid input, and the UI parser recognizes only slash-delimited dates. Implement an explicit date normalizer for the documented UI/CSV formats. Likewise, parse raw commitment amounts with a strict numeric parser that rejects non-finite values rather than relying on `parseFloat` behavior for formatted strings.
+3. **P1 — the chart test is correctly reported as skipped when empty, but remains unexercised.** The TODO must be resolved with a deterministic known-data period/tenant before this can be considered API/UI integrity coverage.
