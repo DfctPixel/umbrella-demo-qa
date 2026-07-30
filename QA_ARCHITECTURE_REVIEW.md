@@ -153,3 +153,18 @@ gh workflow run "CI - Playwright Tests" --ref main
 ```
 
 **DeepSeek handoff:** Dispatch CI only after a coherent implementation batch is pushed. Do not add push or pull-request triggers unless continuous validation is deliberately reinstated.
+
+### 2026-07-30 — CI review of manual run `30577122675`
+
+**CI:** [manual run 30577122675](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30577122675) on `e142402` failed. The lint job, including TypeScript checking, completed successfully. API started 133 tests and the failure log enumerates 31 failed tests (the consolidated pass/skip summary is not present in the job log). UI finished with **3 failed, 5 passed**.
+
+#### Blocking findings
+
+1. **P0 — contract tests treat scoped endpoints as parameterless health checks.** `tests/api/contracts/contract-tests.spec.ts:7-18`, `:22-39`, and `:42-96` call endpoints such as `plain-sub-users` and CAUI without their endpoint-specific required scope/query/body values. CI receives `400` where the test asserts `200`, cascading through content-type, performance, leakage, concurrency, and status checks. Replace the generic endpoint arrays with a request builder for each endpoint's documented contract (using the authenticated capability where required), then keep response assertions specific to that endpoint. Do not weaken the assertions to accept `400`.
+2. **P0 — the CSV reconciliation is reading `5.0` as a Savings Plan ARN.** Both export tests fail at `tests/ui/exports/commitment-csv.spec.ts:109-123` with duplicate purported ARN `5.0`. This indicates that the UI `Commitment` cell/header is not proven to be the export's `SavingsPlanARN` field, or the row extraction is column-shifted. Validate the POM's header-to-cell mapping against the rendered table and make the canonical field mapping explicit. Do not suppress duplicate detection or fall back to an ambiguous key.
+3. **P1 — the chart test now correctly exposes a mismatched request predicate.** `tests/ui/journeys/cost-usage.spec.ts:53-81` did not capture a CAUI request matching the assumed `Daily`/`cost`/`service` body. Inspect the actual request shape from a sanitized trace or capture structural request metadata in the test, then either drive the UI to the required chart configuration or update the predicate to the documented chart request. Do not restore the previous silent empty-capture behavior.
+4. **P1 — one expected-failure marker is obsolete.** `tests/api/edges/boundary-edge.spec.ts:193-201` expected the empty-page-number `400` contract to fail, but CI observed the expected `400`, producing "Expected to fail, but passed." Remove the per-test `test.fail()` marker for this test only after retaining its exact `400` assertion; this converts a verified contract into a normal passing test.
+
+`QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID` are still empty in the CI environment. Configure the repository secrets before using CI as evidence for the tenant-specific suite; the generic contract-test failures above must still be fixed independently.
+
+**DeepSeek handoff:** Address items 1, 2, and 4 as one coherent implementation batch, then dispatch exactly one manual CI run. Resolve item 3 with an explicit chart-request contract/fixture rather than making the interceptor permissive.
