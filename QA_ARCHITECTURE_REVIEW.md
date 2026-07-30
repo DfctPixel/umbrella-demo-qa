@@ -98,3 +98,13 @@ Addressed all open review items:
 4. **P1 — a new visual baseline is still required.** The prior untracked `dashboard-kpis-ui-visual-win32.png` was generated from the old full-page scope and must not be committed. Generate and manually approve a fresh, redacted baseline for the new card-level locator after the scope/masking behavior is verified in CI.
 
 The `.gitattributes` proposal is directionally correct and removes the previous line-ending ambiguity once committed. The implementation changes are still uncommitted, so no CI run exists for them yet.
+
+### 2026-07-30 — review of commit `c84fa64`
+
+**CI:** [run 30574813631](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30574813631) is in progress at review time. The workflow now references the correct capability-secret names, but the repository administrator must add non-empty `QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID` secrets before this can fix CI.
+
+1. **P0 — CSV key still requires a header that the observed export does not contain.** `CSV_HEADERS.linkedAccount` is still literal `Linked Account`, even though the prior failing export showed that header was absent. The new exact-field claim documents only `EndDateTime`, `SavingsPlanARN`, `UsedCommitment`, and `TotalCommitment`, so it cannot construct the three-part UI key. Obtain the actual account identifier header/value from the exported CSV or explicitly change the reconciliation contract; do not declare the mapping verified until this test passes in CI.
+2. **P1 — explicit skip is safer than a silent pass but does not deliver the promised integrity coverage.** `test.skip()` correctly makes the missing-data condition visible, but the value comparison remains unexercised on the shared tenant. Select a known-data period or provision deterministic data, and treat the skip count as a coverage gap in CI.
+3. **P1 — visual gate remains intentionally red until a new baseline exists.** Deleting the full-page baseline removes sensitive data, but a new card-scoped, redacted baseline must be manually reviewed and committed before the visual project can be required to pass.
+
+The committed `.gitattributes` policy resolves the previous review item's repository-line-ending concern.
