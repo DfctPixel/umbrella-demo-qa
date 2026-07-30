@@ -49,13 +49,21 @@ test.describe('Commitment CSV Export @ui', () => {
 
   /**
    * Parse a raw CSV amount as a finite positive number.
-   * Throws on NaN, Infinity, or non-string input.
+   * Accepts optional leading `$` and comma-grouped thousands.
+   * Throws on NaN, Infinity, embedded non-numeric characters, or empty input.
    */
   function strictParseAmount(raw: string): number {
     if (typeof raw !== 'string' || raw.trim() === '') {
       throw new Error(`Amount must be a non-empty string, got ${typeof raw}`);
     }
-    const n = parseFloat(raw);
+    const cleaned = raw.replace(/^[\$€£]/, '').replace(/,/g, '').trim();
+    if (!/^\d+(\.\d+)?$/.test(cleaned)) {
+      throw new Error(
+        `Amount must be a decimal number, got "${raw}" (cleaned: "${cleaned}"). ` +
+        `Expected format: optional currency symbol + digits + optional decimal.`,
+      );
+    }
+    const n = parseFloat(cleaned);
     if (!Number.isFinite(n) || n < 0) {
       throw new Error(`Amount must be a finite non-negative number, got "${raw}" (${n})`);
     }
@@ -91,12 +99,12 @@ test.describe('Commitment CSV Export @ui', () => {
 
     const csvAccountField = detectAccountHeader(csvHeaders);
 
-    // Build two UI indexes:
-    //   fullKey  — "account::ARN::date" (when account is populated)
-    //   arnKey   — "ARN" alone (fallback for CSV exports without account column)
-    // Both point to the same UI row so whichever key the CSV side builds will match.
+    // Build UI indexes:
+    //   fullKey  — "account::ARN::date" (used when CSV has an account column)
+    //   arnKey   — "ARN" alone         (used when CSV has no account column)
     const uiByFullKey = new Map<string, Record<string, string>>();
     const uiByArnKey  = new Map<string, Record<string, string>>();
+    const seenArns    = new Set<string>();
     for (const row of uiRows) {
       const commitment = normalize(row['Commitment'] || '');
       const account    = normalize(row['Linked Account'] || '');
@@ -105,6 +113,13 @@ test.describe('Commitment CSV Export @ui', () => {
         uiByFullKey.set(`${account}::${commitment}::${expiry}`, row);
       }
       if (commitment) {
+        if (seenArns.has(commitment)) {
+          throw new Error(
+            `Duplicate ARN "${commitment}" in UI table — the ARN-only index would be ambiguous. ` +
+            `Either the CSV export must carry an account column, or commitments must be unique.`,
+          );
+        }
+        seenArns.add(commitment);
         uiByArnKey.set(commitment, row);
       }
     }
@@ -115,15 +130,22 @@ test.describe('Commitment CSV Export @ui', () => {
 
       expect(csvCommit, 'CSV row must have a SavingsPlanARN').toBeTruthy();
 
-      // Look up the UI row: prefer the full composite-key index when the CSV
-      // carries an account column; fall back to the ARN-only index otherwise.
-      const csvAccount = csvAccountField ? normalize(csvRow[csvAccountField] || '') : '';
-      const fullKey    = csvAccount ? `${csvAccount}::${csvCommit}::${csvExpiry}` : '';
-      let uiRow        = fullKey ? uiByFullKey.get(fullKey) : undefined;
-      if (!uiRow) {
+      // Choose the lookup strategy based on whether the CSV carries an
+      // account column — never mix the two.
+      let uiRow: Record<string, string> | undefined;
+      if (csvAccountField) {
+        const csvAccount = normalize(csvRow[csvAccountField] || '');
+        const fullKey    = `${csvAccount}::${csvCommit}::${csvExpiry}`;
+        uiRow = uiByFullKey.get(fullKey);
+        expect(uiRow,
+          `CSV row with account field must match UI composite key "${fullKey}"`,
+        ).toBeDefined();
+      } else {
         uiRow = uiByArnKey.get(csvCommit);
+        expect(uiRow,
+          `CSV row without account field must match ARN "${csvCommit}" in UI`,
+        ).toBeDefined();
       }
-      expect(uiRow, `CSV row "${csvCommit}" must have a matching UI row`).toBeDefined();
 
       // Text field: commitment (ARN) — must match
       expect(csvCommit, `Commitment mismatch for ${csvCommit}`)
@@ -143,17 +165,6 @@ test.describe('Commitment CSV Export @ui', () => {
       expect(Math.abs(csvUtilPct - uiPct),
         `Utilization mismatch for ${csvCommit}: CSV=${csvUtilPct.toFixed(2)}% UI=${uiPct.toFixed(2)}%`)
         .toBeLessThanOrEqual(0.5);
-    }
-
-    // When the CSV has no account column, verify that the ARN-only index is
-    // unambiguous (each ARN maps to exactly one UI row).
-    if (!csvAccountField) {
-      for (const [arn, row] of uiByArnKey) {
-        expect(
-          Array.from(uiByArnKey.values()).filter(r => r === row).length,
-          `ARN "${arn}" must be unique in the UI table to serve as a lookup key`,
-        ).toBe(1);
-      }
     }
   }
 
