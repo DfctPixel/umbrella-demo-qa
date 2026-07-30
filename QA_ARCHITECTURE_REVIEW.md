@@ -179,3 +179,5 @@ gh workflow run "CI - Playwright Tests" --ref main
 4. **P2 — preserve the repository's line-ending gate.** Normalize the modified boundary test line so `git diff --check` is clean before the manual CI run.
 
 **DeepSeek handoff:** Replace the cosmetic contract wrapper with proven endpoint-specific requests, test the UI row mapping directly, redact the chart diagnostic, and fix the whitespace gate. Then dispatch one manual CI run; do not launch multiple retries in parallel.
+
+**CI update:** [manual run 30578073554](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30578073554) is in progress for this review baseline. Lint and TypeScript checks completed successfully; API and UI tests are executing.
