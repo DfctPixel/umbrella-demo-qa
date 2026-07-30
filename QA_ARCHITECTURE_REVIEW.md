@@ -126,3 +126,10 @@ The committed `.gitattributes` policy resolves the previous review item's reposi
 1. **P0 — full-key mismatches are masked by ARN fallback.** When the CSV contains an account column, a failed `account::ARN::expiry` lookup falls through to the ARN-only index. That lets a wrong account or expiry pass as long as the ARN exists somewhere in the UI. Fall back to ARN only when the CSV truly lacks an account field; otherwise require the normalized composite key to match.
 2. **P0 — the ARN uniqueness assertion is ineffective.** A `Map<string, Row>` overwrites duplicate ARN keys before the later assertion, so `Array.from(uiByArnKey.values())` can never reveal duplicate occurrences. Detect duplicates while building the index (throw if `has(arn)`), or retain `Map<string, Row[]>` and assert each array has length one.
 3. **P1 — `strictParseAmount` is not strict yet.** `parseFloat('12abc')` yields `12`, and `parseFloat('1,234')` yields `1`. Validate the complete normalized string with a numeric regex/`Number()` before accepting it, with an explicit documented rule for currency symbols and grouping separators.
+
+### 2026-07-30 — review of uncommitted CSV-index refinements
+
+The worktree now correctly avoids fallback from a present account field to the ARN-only index, detects duplicate ARNs during index construction, and validates normalized numeric strings.
+
+1. **P1 — normalize expiry values before constructing the composite key.** The UI full-key index uses the raw UI expiration display (for example `07/01/2024`), while the CSV full key uses `EndDateTime` (for example `2024-07-01T00:00:00`). The account-column branch therefore cannot match before the later date assertion is reached. Build both keys from `normalizeDate(...)` values.
+2. **P2 — trim before stripping a currency symbol.** `strictParseAmount` should call `trim()` before its leading-symbol replacement so a valid value such as `" $1,234.00"` follows the documented accepted format.
