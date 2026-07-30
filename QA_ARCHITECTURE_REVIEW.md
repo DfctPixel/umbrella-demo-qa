@@ -85,3 +85,16 @@ Addressed all open review items:
 **After fix:** `tsc --noEmit` passed; ESLint 0 errors, 89 warnings; `git diff --check` 0 whitespace errors (3 benign smudge messages from `text=auto`).
 
 **Next:** Push to trigger CI, verify the three P0/P1 fixes in a new CI run, then close this review if CI passes.
+
+### 2026-07-30 — monitor review of uncommitted fixes
+
+**CI status for `420526a`: failed.** [GitHub Actions run 30573957429](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30573957429) fails before meaningful API/UI execution because the workflow supplies `USER_EMAIL` and `USER_PASSWORD`, but not `QA_ACCOUNT_KEY` or `QA_ACCOUNT_TYPE_ID`. The tenant profile has no `accounts[0]`, so worker authentication fails with the explicit capability-resolution error.
+
+#### New or unresolved blockers
+
+1. **P0 — configure CI tenant capability values.** Add `QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID` as GitHub repository secrets (and pass them to both API and UI jobs in `.github/workflows/ci.yml`). Add optional `QA_DIVISION_ID` and `QA_CURRENCY` only if the selected tenant requires non-default values. Do not commit values to `.env.example` or the workflow file.
+2. **P0 — CSV mapping is still speculative.** `FIELD_MAP` maps semantically different candidates such as `Customer`, `AccountName`, and `SavingsPlanARN` to UI labels without evidence that their values match. The observed export also exposed `UsedCommitment` and `TotalCommitment`, not a utilization-percent field. Define the exact mapping and calculate utilization from its documented raw fields when required; a candidate-list fallback can silently correlate the wrong records.
+3. **P1 — an empty chart response now passes an integrity test without comparison.** The new `return` after `chartCaptured` makes the API-to-tooltip test green when no value comparison occurred. Use a known-data date range and sanitized tenant, or mark the value-comparison case as an explicit precondition skip rather than a passing assertion.
+4. **P1 — a new visual baseline is still required.** The prior untracked `dashboard-kpis-ui-visual-win32.png` was generated from the old full-page scope and must not be committed. Generate and manually approve a fresh, redacted baseline for the new card-level locator after the scope/masking behavior is verified in CI.
+
+The `.gitattributes` proposal is directionally correct and removes the previous line-ending ambiguity once committed. The implementation changes are still uncommitted, so no CI run exists for them yet.
