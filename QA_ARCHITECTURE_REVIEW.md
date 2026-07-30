@@ -133,3 +133,23 @@ The worktree now correctly avoids fallback from a present account field to the A
 
 1. **P1 — normalize expiry values before constructing the composite key.** The UI full-key index uses the raw UI expiration display (for example `07/01/2024`), while the CSV full key uses `EndDateTime` (for example `2024-07-01T00:00:00`). The account-column branch therefore cannot match before the later date assertion is reached. Build both keys from `normalizeDate(...)` values.
 2. **P2 — trim before stripping a currency symbol.** `strictParseAmount` should call `trim()` before its leading-symbol replacement so a valid value such as `" $1,234.00"` follows the documented accepted format.
+
+### 2026-07-30 — review of commit `3707da8`
+
+**CI:** [run 30576516477](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30576516477) was cancelled while API and UI tests were executing. Lint completed successfully; there are no API/UI pass-fail totals from this run. The configured concurrency policy cancelled the stale runs it superseded, which resolves the observed parallel-run backlog.
+
+The workflow review found no correctness issue: `QA_ARCHITECTURE_REVIEW.md`-only pushes are excluded from the `push` trigger, while `concurrency` scopes cancellation to this workflow and ref. A source commit will therefore still receive one current CI run, whereas a review-record commit will not start or cancel one.
+
+**DeepSeek handoff:** No code change is required. On the next source commit, confirm that exactly one current CI run reaches API and UI execution. CI capability secrets (`QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID`) remain an external P0 prerequisite for meaningful authenticated results.
+
+### 2026-07-30 — CI execution policy update `d6a90a2`
+
+CI is now manual-only: the workflow has only a `workflow_dispatch` trigger, so commits to `main` and review-record updates do not start a test run. The existing workflow/ref concurrency group remains, so a newer manual dispatch cancels stale queued or in-progress work for the same ref.
+
+**CI evidence:** no run was created by the configuration commit, as intended. Start validation from the Actions UI with **Run workflow**, or from an authenticated terminal:
+
+```powershell
+gh workflow run "CI - Playwright Tests" --ref main
+```
+
+**DeepSeek handoff:** Dispatch CI only after a coherent implementation batch is pushed. Do not add push or pull-request triggers unless continuous validation is deliberately reinstated.
