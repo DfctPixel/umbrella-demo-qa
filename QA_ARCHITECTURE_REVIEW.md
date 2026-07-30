@@ -118,3 +118,11 @@ The committed `.gitattributes` policy resolves the previous review item's reposi
 1. **P0 — the new fallback key cannot match the UI index.** UI rows with a populated `Linked Account` are stored only under `account::SavingsPlanARN::expiry`, while a CSV without an account field looks them up by `SavingsPlanARN` alone. The lookup will therefore fail even when the ARN is correct. Create both indexes, select the index based on CSV capabilities, and assert that the ARN-only index is unique before using it as a key.
 2. **P1 — normalize dates and amounts before comparison.** `new Date(csvExpiry).toISOString()` throws for invalid input, and the UI parser recognizes only slash-delimited dates. Implement an explicit date normalizer for the documented UI/CSV formats. Likewise, parse raw commitment amounts with a strict numeric parser that rejects non-finite values rather than relying on `parseFloat` behavior for formatted strings.
 3. **P1 — the chart test is correctly reported as skipped when empty, but remains unexercised.** The TODO must be resolved with a deterministic known-data period/tenant before this can be considered API/UI integrity coverage.
+
+### 2026-07-30 — review of commit `b6f703e`
+
+**CI:** [run 30575554743](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30575554743) is queued at review time.
+
+1. **P0 — full-key mismatches are masked by ARN fallback.** When the CSV contains an account column, a failed `account::ARN::expiry` lookup falls through to the ARN-only index. That lets a wrong account or expiry pass as long as the ARN exists somewhere in the UI. Fall back to ARN only when the CSV truly lacks an account field; otherwise require the normalized composite key to match.
+2. **P0 — the ARN uniqueness assertion is ineffective.** A `Map<string, Row>` overwrites duplicate ARN keys before the later assertion, so `Array.from(uiByArnKey.values())` can never reveal duplicate occurrences. Detect duplicates while building the index (throw if `has(arn)`), or retain `Map<string, Row[]>` and assert each array has length one.
+3. **P1 — `strictParseAmount` is not strict yet.** `parseFloat('12abc')` yields `12`, and `parseFloat('1,234')` yields `1`. Validate the complete normalized string with a numeric regex/`Number()` before accepting it, with an explicit documented rule for currency symbols and grouping separators.
