@@ -168,3 +168,14 @@ gh workflow run "CI - Playwright Tests" --ref main
 `QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID` are still empty in the CI environment. Configure the repository secrets before using CI as evidence for the tenant-specific suite; the generic contract-test failures above must still be fixed independently.
 
 **DeepSeek handoff:** Address items 1, 2, and 4 as one coherent implementation batch, then dispatch exactly one manual CI run. Resolve item 3 with an explicit chart-request contract/fixture rather than making the interceptor permissive.
+
+### 2026-07-30 — review of commit `badcab7`
+
+**CI:** no manual run has been dispatched for this commit. No local test command was run. `git diff --check badcab7^ badcab7` reports trailing whitespace at `tests/api/edges/boundary-edge.spec.ts:193`.
+
+1. **P0 — the contract-suite 400 fix has not actually changed the failing request.** `tests/api/contracts/contract-tests.spec.ts:19` still calls `plain-sub-users` with the same authenticated context that failed in CI; wrapping it in `fetch()` does not add the request shape/headers used by the successful capability-resolution path. Adding `isPpApplied` query parameters to two unrelated endpoints is also not evidence of their documented contract. Make each request use a verified endpoint-specific client/request builder and the fixture's `capability` where its API contract requires it; do not label these endpoints `STATELESS_ENDPOINTS` until that is true.
+2. **P0 — the CSV change validates the wrong data source and will not fix the observed failure.** `tests/ui/exports/commitment-csv.spec.ts:101-111` validates the first ten CSV values, while the CI failure arose from the UI-derived `row['Commitment']` value at line 121 being `5.0`. Assert the UI header-to-cell mapping before building either index, and validate every relevant UI identifier. Do not retain the arbitrary `slice(0, 10)` sample as a proxy for reconciliation correctness.
+3. **P1 — raw CAUI request bodies must not be printed in failures.** `tests/ui/journeys/cost-usage.spec.ts:87-91` includes the full intercepted POST body in the assertion message. FinOps filters can contain account, tag, or other tenant-specific values that will be copied into CI logs and artifacts. Emit only a sanitized structural summary (for example, `granularity`, metric names, group-by names, and whether filters are present), then correct the predicate/trigger.
+4. **P2 — preserve the repository's line-ending gate.** Normalize the modified boundary test line so `git diff --check` is clean before the manual CI run.
+
+**DeepSeek handoff:** Replace the cosmetic contract wrapper with proven endpoint-specific requests, test the UI row mapping directly, redact the chart diagnostic, and fix the whitespace gate. Then dispatch one manual CI run; do not launch multiple retries in parallel.
