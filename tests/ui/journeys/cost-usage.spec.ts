@@ -81,10 +81,11 @@ test.describe('Cost & Usage Journey @ui', () => {
     expect(chartCaptured, 'chart CAUI request must have been intercepted by the route handler').toBe(true);
 
     // When the tenant has no Daily/service costs for the default period the
-    // chart data may be empty.  Assert structural shape regardless, and only
-    // compare tooltip values when data exists.
+    // chart data may be empty.  Skip the value-comparison section explicitly
+    // so it is not mistaken for a passing assertion.
     if (chartCauiBody.length === 0) {
-      return;  // period has no costs — skip value comparison
+      test.skip(true, 'No cost data available for the default period — run with a known-data date range');
+      return;
     }
 
     expect(chartCauiBody, 'every chart CAUI entry must have usage_date').not.toContainEqual(

@@ -35,6 +35,10 @@ jobs:
         env:
           USER_EMAIL: ${{ secrets.USER_EMAIL }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          QA_ACCOUNT_KEY: ${{ secrets.QA_ACCOUNT_KEY }}
+          QA_ACCOUNT_TYPE_ID: ${{ secrets.QA_ACCOUNT_TYPE_ID }}
+          QA_DIVISION_ID: ${{ vars.QA_DIVISION_ID || '0' }}
+          QA_CURRENCY: ${{ vars.QA_CURRENCY || 'USD' }}
           BASE_URL: ${{ vars.BASE_URL || env._BASE_URL_DEFAULT }}
           API_URL: ${{ vars.API_URL || env._API_URL_DEFAULT }}
 
@@ -70,6 +74,10 @@ jobs:
         env:
           USER_EMAIL: ${{ secrets.USER_EMAIL }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          QA_ACCOUNT_KEY: ${{ secrets.QA_ACCOUNT_KEY }}
+          QA_ACCOUNT_TYPE_ID: ${{ secrets.QA_ACCOUNT_TYPE_ID }}
+          QA_DIVISION_ID: ${{ vars.QA_DIVISION_ID || '0' }}
+          QA_CURRENCY: ${{ vars.QA_CURRENCY || 'USD' }}
           BASE_URL: ${{ vars.BASE_URL || env._BASE_URL_DEFAULT }}
           API_URL: ${{ vars.API_URL || env._API_URL_DEFAULT }}
 

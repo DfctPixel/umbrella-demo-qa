@@ -5,35 +5,20 @@ import { CommitmentDashboardPage } from '../../../pages/CommitmentDashboardPage'
 test.describe('Commitment CSV Export @ui', () => {
 
   /**
-   * Map from canonical UI column names to the actual raw CSV column names
-   * emitted by the export endpoint.  Each canonical name may match one of
-   * several possible CSV headers depending on the export contract version.
+   * Exact mapping from canonical UI column names to the raw CSV column names
+   * emitted by the export endpoint.  "Utilization Percent" is derived from
+   * UsedCommitment / TotalCommitment × 100 rather than a raw CSV field.
    *
-   * TODO: agree the exact export field set with the product/API owner and
-   * reduce this to a 1:1 mapping.
+   * Verified export contract (2026-07-30): {EndDateTime, SavingsPlanARN,
+   * UsedCommitment, TotalCommitment}.
    */
-  const FIELD_MAP: Record<string, string[]> = {
-    'Linked Account':    ['Linked Account', 'Account', 'AccountName', 'Customer', 'CustomerName'],
-    'Commitment':        ['Commitment', 'PlanType', 'SavingsPlan', 'ReservedInstance', 'SavingsPlanARN'],
-    'Expiration Date':   ['Expiration Date', 'EndDate', 'EndDateTime', 'Expiry', 'ExpiryDate'],
-    'Utilization Percent': ['Utilization', 'UtilizationPercent', 'UtilizationPct', 'UsagePct', 'Utilization %'],
-  };
-
-  function resolveField(csvHeaders: string[], canonical: string): string {
-    const candidates = FIELD_MAP[canonical];
-    if (!candidates) throw new Error(`Unknown canonical field "${canonical}"`);
-    const match = candidates.find(h => csvHeaders.includes(h));
-    if (!match) throw new Error(
-      `CSV export is missing a header that maps to "${canonical}". ` +
-      `Searched: [${candidates.join(', ')}]. Actual headers: [${csvHeaders.join(', ')}]. ` +
-      `Update FIELD_MAP with the correct raw column name.`,
-    );
-    return match;
-  }
-
-  function pct(s: string): number {
-    return parseFloat(s.replace(/[^0-9.]/g, ''));
-  }
+  const CSV_HEADERS = {
+    linkedAccount:    'Linked Account',
+    commitment:       'SavingsPlanARN',
+    expirationDate:  'EndDateTime',
+    usedAmount:      'UsedCommitment',
+    totalAmount:     'TotalCommitment',
+  } as const;
 
   function normalize(s: string): string {
     return s.replace(/\s+/g, ' ').trim();
@@ -61,12 +46,10 @@ test.describe('Commitment CSV Export @ui', () => {
 
     const csvHeaders = Object.keys(csvRows[0]);
 
-    // Resolve the actual CSV column name for each canonical field.
-    // Throws with a descriptive error when a mapping is missing.
-    const csvLinkedAccount   = resolveField(csvHeaders, 'Linked Account');
-    const csvCommitment      = resolveField(csvHeaders, 'Commitment');
-    const csvExpirationDate  = resolveField(csvHeaders, 'Expiration Date');
-    const csvUtilPct         = resolveField(csvHeaders, 'Utilization Percent');
+    // Assert every expected CSV header exists
+    for (const [key, expected] of Object.entries(CSV_HEADERS)) {
+      expect(csvHeaders, `CSV must contain "${expected}" (mapped from ${key})`).toContain(expected);
+    }
 
     // Build UI lookup key from canonical field names
     const uiByKey = new Map<string, Record<string, string>>();
@@ -76,20 +59,29 @@ test.describe('Commitment CSV Export @ui', () => {
     }
 
     for (const csvRow of csvRows) {
-      const key = `${normalize(csvRow[csvLinkedAccount] || '')}::${normalize(csvRow[csvCommitment] || '')}::${normalize(csvRow[csvExpirationDate] || '')}`;
-      expect(key, 'CSV row must have all fields mapped').not.toBe('::::');
+      const csvLinked   = normalize(csvRow[CSV_HEADERS.linkedAccount] || '');
+      const csvCommit   = normalize(csvRow[CSV_HEADERS.commitment] || '');
+      const csvExpiry   = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
+      const key = `${csvLinked}::${csvCommit}::${csvExpiry}`;
+
+      expect(key, 'CSV row must have all mapped fields').not.toBe('::::');
 
       const uiRow = uiByKey.get(key);
       expect(uiRow, `CSV row "${key}" must have a matching UI row`).toBeDefined();
 
-      expect(normalize(csvRow[csvCommitment]), `Commitment mismatch for ${key}`)
+      // Text fields: exact normalized match
+      expect(normalize(csvRow[CSV_HEADERS.commitment] || ''), `Commitment mismatch for ${key}`)
         .toBe(normalize(uiRow!['Commitment'] || ''));
-      expect(normalize(csvRow[csvExpirationDate]), `Expiration Date mismatch for ${key}`)
+      expect(normalize(csvRow[CSV_HEADERS.expirationDate] || ''), `Expiration Date mismatch for ${key}`)
         .toBe(normalize(uiRow!['Expiration Date'] || ''));
 
-      const csvPct = pct(csvRow[csvUtilPct] || '');
-      const uiPct  = pct(uiRow!['Utilization Percent'] || '');
-      expect(Math.abs(csvPct - uiPct), `Utilization Percent mismatch for ${key}: CSV=${csvPct}% UI=${uiPct}%`)
+      // Financial field: utilization = used / total × 100
+      const used  = parseFloat(csvRow[CSV_HEADERS.usedAmount] || '0');
+      const total = parseFloat(csvRow[CSV_HEADERS.totalAmount] || '0');
+      const csvUtilPct = total > 0 ? (used / total) * 100 : 0;
+
+      const uiPct = parseFloat((uiRow!['Utilization Percent'] || '').replace(/[^0-9.]/g, ''));
+      expect(Math.abs(csvUtilPct - uiPct), `Utilization Percent mismatch for ${key}: CSV=${csvUtilPct.toFixed(2)}% UI=${uiPct.toFixed(2)}%`)
         .toBeLessThanOrEqual(0.5);
     }
   }
