@@ -56,7 +56,8 @@ test.describe('Commitment CSV Export @ui', () => {
     if (typeof raw !== 'string' || raw.trim() === '') {
       throw new Error(`Amount must be a non-empty string, got ${typeof raw}`);
     }
-    const cleaned = raw.replace(/^[\$€£]/, '').replace(/,/g, '').trim();
+    const trimmed = raw.trim();
+    const cleaned = trimmed.replace(/^[\$€£]/, '').replace(/,/g, '').trim();
     if (!/^\d+(\.\d+)?$/.test(cleaned)) {
       throw new Error(
         `Amount must be a decimal number, got "${raw}" (cleaned: "${cleaned}"). ` +
@@ -99,16 +100,15 @@ test.describe('Commitment CSV Export @ui', () => {
 
     const csvAccountField = detectAccountHeader(csvHeaders);
 
-    // Build UI indexes:
-    //   fullKey  — "account::ARN::date" (used when CSV has an account column)
-    //   arnKey   — "ARN" alone         (used when CSV has no account column)
+    // Build UI indexes.  Both key formats normalise dates so they match
+    // the CSV-side values after normalisation.
     const uiByFullKey = new Map<string, Record<string, string>>();
     const uiByArnKey  = new Map<string, Record<string, string>>();
     const seenArns    = new Set<string>();
     for (const row of uiRows) {
       const commitment = normalize(row['Commitment'] || '');
       const account    = normalize(row['Linked Account'] || '');
-      const expiry     = normalize(row['Expiration Date'] || '');
+      const expiry     = normalizeDate(row['Expiration Date'] || '');
       if (account) {
         uiByFullKey.set(`${account}::${commitment}::${expiry}`, row);
       }
