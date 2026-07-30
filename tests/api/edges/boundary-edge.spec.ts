@@ -190,10 +190,7 @@ test.describe('Boundary & Edge Cases @api @edge', () => {
     expect(Array.isArray(body.page)).toBe(true);
   });
 
-  test('Recommendations/list — empty pageNumber should return 400', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-RECOMMENDATIONS' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-RECOMMENDATIONS');
+  test('Recommendations/list — empty pageNumber should return 400', async ({ api }) => {
     const r = await api.context.post('/api/v1/recommendationsNew/list', {
       data: { pageSize: 10, sort: { property: 'annualSavings', direction: 'desc' } },
     });

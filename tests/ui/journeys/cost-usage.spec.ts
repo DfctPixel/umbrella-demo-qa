@@ -47,13 +47,17 @@ test.describe('Cost & Usage Journey @ui', () => {
     // Intercept only the CAUI POST that drives the bar chart by matching the
     // request body — Daily granularity with cost metric and service groupBy.
     // A flag prevents later summary/table CAUI calls from overwriting the capture.
+    // Also capture the raw request body for diagnostic logging when the
+    // predicate fails to match.
     let chartCauiBody: Array<{ usage_date?: string; total_cost?: number }> = [];
     let chartCaptured = false;
+    let lastCauiBody: Record<string, unknown> | null = null;
 
     await page.route(/\/api\/v1\/invoices\/caui$/, async (route, request) => {
       if (chartCaptured) { await route.fulfill({ response: await route.fetch() }); return; }
       if (request.method() !== 'POST') { await route.fulfill({ response: await route.fetch() }); return; }
       const postData = request.postDataJSON() as Record<string, unknown>;
+      lastCauiBody = postData;
       const metrics = postData?.metrics as string[] | undefined;
       const groupBy = postData?.groupBy as string[] | undefined;
       const isChartFeed =
@@ -77,8 +81,12 @@ test.describe('Cost & Usage Journey @ui', () => {
     await costUsagePage.waitForChartReady();
 
     // Assert the route predicate matched a chart CAUI call.
-    // Without this, a failing predicate looks identical to an empty API response.
-    expect(chartCaptured, 'chart CAUI request must have been intercepted by the route handler').toBe(true);
+    // When this fails, lastCauiBody contains the actual POST body received
+    // (if any) so the mismatch can be diagnosed.
+    expect(chartCaptured,
+      `chart CAUI request must have been intercepted. ` +
+      `Last CAUI POST body: ${JSON.stringify(lastCauiBody)}`,
+    ).toBe(true);
 
     // When the tenant has no Daily/service costs for the default period the
     // chart data may be empty.  Mark the value-comparison explicitly so CI

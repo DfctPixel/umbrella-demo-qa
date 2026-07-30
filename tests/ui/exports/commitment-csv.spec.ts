@@ -98,6 +98,18 @@ test.describe('Commitment CSV Export @ui', () => {
       expect(csvHeaders, `CSV export must contain header "${h}"`).toContain(h);
     }
 
+    // Validate that the commitment field actually carries identifiers
+    // (ARNs, plan names, etc.) and not numeric artifacts from a column shift.
+    const csvArnVals = csvRows.map(r => normalize(r[CSV_HEADERS.commitment] || '')).filter(Boolean);
+    for (const val of csvArnVals.slice(0, 10)) {
+      const isNumeric = /^\d+(\.\d+)?$/.test(val);
+      expect(isNumeric,
+        `SavingsPlanARN value "${val}" looks like a number, not an identifier. ` +
+        `The Commitment column mapping or POM header alignment may be incorrect. ` +
+        `Verify that the UI table's header cell order matches the rendered column values.`,
+      ).toBe(false);
+    }
+
     const csvAccountField = detectAccountHeader(csvHeaders);
 
     // Build UI indexes.  Both key formats normalise dates so they match
