@@ -1,18 +1,11 @@
 name: CI - Playwright Tests
 
 on:
-  push:
-    branches: [main]
-    # QA review records are documentation-only commits; do not spend a full
-    # API/UI run on them or cancel the implementation run they document.
-    paths-ignore:
-      - QA_ARCHITECTURE_REVIEW.md
-  pull_request:
-    branches: [main]
+  # Run from the Actions UI or `gh workflow run`; commits never start CI.
   workflow_dispatch:
 
-# Keep only the newest run for each workflow/ref. A later implementation push
-# cancels stale queued or in-progress work on the same branch.
+# Keep only the newest manually dispatched run for each workflow/ref. A later
+# dispatch cancels stale queued or in-progress work on the same branch.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
