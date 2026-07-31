@@ -82,10 +82,7 @@ test.describe('Negative & Error Paths @api @negative', () => {
 
   // ─── Authenticated negative tests (use shared fixture) ──────────────────────
 
-  test('GET /anomaly-detection with invalid startDate — returns 400', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-ANOMALY-DATES' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-ANOMALY-DATES');
+  test('GET /anomaly-detection with invalid startDate — returns 400', async ({ api }) => {
     const r = await api.context.get('/api/v1/anomaly-detection', { params: { startDate: 'not-a-date' } });
     expect(r.status()).toBe(400);
   });

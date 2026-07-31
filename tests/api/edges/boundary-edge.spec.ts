@@ -67,10 +67,7 @@ test.describe('Boundary & Edge Cases @api @edge', () => {
     expect(Array.isArray(body.anomalies)).toBe(true);
   });
 
-  test('Anomaly-detection — reversed dates should return 400', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-ANOMALY-DATES' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-ANOMALY-DATES');
+  test('Anomaly-detection — reversed dates should return 400', async ({ api }) => {
     const r = await api.context.get('/api/v1/anomaly-detection', {
       params: { startDate: `${currentYear}-06-01`, endDate: `${currentYear}-01-01`, isPpApplied: 'false' },
     });
@@ -89,20 +86,14 @@ test.describe('Boundary & Edge Cases @api @edge', () => {
 
   // ─── 3. Pagination boundary tests for recommendations/list ──────────────────
 
-  test('Recommendations/list — pageNumber: 0 should return 400', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-RECOMMENDATIONS' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-RECOMMENDATIONS');
+  test('Recommendations/list — pageNumber: 0 should return 400', async ({ api }) => {
     const r = await api.context.post('/api/v1/recommendationsNew/list', {
       data: { pageNumber: 0, pageSize: 10, sort: { property: 'annualSavings', direction: 'desc' } },
     });
     expect(r.status(), 'pageNumber 0 should be rejected (got ' + r.status() + ')').toBe(400);
   });
 
-  test('Recommendations/list — pageSize: 0 should return 400', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-RECOMMENDATIONS' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-RECOMMENDATIONS');
+  test('Recommendations/list — pageSize: 0 should return 400', async ({ api }) => {
     const r = await api.context.post('/api/v1/recommendationsNew/list', {
       data: { pageNumber: 1, pageSize: 0, sort: { property: 'annualSavings', direction: 'desc' } },
     });
@@ -123,10 +114,7 @@ test.describe('Boundary & Edge Cases @api @edge', () => {
     expect(Array.isArray(body.page)).toBe(true);
   });
 
-  test('Recommendations/list — pageNumber: -1 (negative) should return 400', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-RECOMMENDATIONS' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-RECOMMENDATIONS');
+  test('Recommendations/list — pageNumber: -1 (negative) should return 400', async ({ api }) => {
     const r = await api.context.post('/api/v1/recommendationsNew/list', {
       data: { pageNumber: -1, pageSize: 10, sort: { property: 'annualSavings', direction: 'desc' } },
     });

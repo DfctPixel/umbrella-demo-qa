@@ -1,108 +1,124 @@
 import { test, expect } from '../../../helpers/fixtures/api';
+import { ANONYMOUS_APIKEY } from '../../../helpers/auth/apikey';
 
-interface RequestSpec {
-  url: string;
-  method: 'get' | 'post';
-  params?: Record<string, string>;
-  data?: Record<string, unknown>;
+/**
+ * Endpoint-specific request builders matching the real browser/API contract.
+ *
+ * plain-sub-users requires the anonymous apikey header (the authenticated
+ * scoped apikey is rejected with 400).  CAUI uses periodGranLevel/costType
+ * instead of the obsolete granularity/metrics shape.
+ */
+const YEAR = new Date().getFullYear();
+const TODAY = new Date().toISOString().split('T')[0];
+
+function requestPlainSubUsers(ctx: import('@playwright/test').APIRequestContext) {
+  return ctx.get('/api/v1/users/plain-sub-users', {
+    headers: { apikey: ANONYMOUS_APIKEY },
+  });
 }
 
-function fetch(r: RequestSpec, ctx: import('@playwright/test').APIRequestContext) {
-  if (r.method === 'post') {
-    return ctx.post(r.url, { params: r.params, data: r.data });
-  }
-  return ctx.get(r.url, { params: r.params });
+function requestServiceNames(ctx: import('@playwright/test').APIRequestContext) {
+  return ctx.get('/api/v1/invoices/service-names/distinct');
 }
 
-/** Endpoints that return structured data without additional query parameters. */
-const STATELESS_ENDPOINTS: RequestSpec[] = [
-  { url: '/api/v1/users/plain-sub-users', method: 'get' },
-  { url: '/api/v1/invoices/service-names/distinct', method: 'get' },
-  { url: '/api/v1/invoices/dimensions-config', method: 'get', params: { isPpApplied: 'false' } },
-  { url: '/api/v1/anomaly-detection/anomalies/stats', method: 'get', params: { isPpApplied: 'false' } },
-  { url: '/api/v1/usage/custom-dashboard/dashboards', method: 'get' },
-  { url: '/api/v1/users/notifications', method: 'get' },
+function requestDimensionsConfig(ctx: import('@playwright/test').APIRequestContext) {
+  return ctx.get('/api/v1/invoices/dimensions-config', { params: { isPpApplied: 'false' } });
+}
+
+function requestAnomalyStats(ctx: import('@playwright/test').APIRequestContext) {
+  return ctx.get('/api/v1/anomaly-detection/anomalies/stats', { params: { isPpApplied: 'false' } });
+}
+
+function requestDashboards(ctx: import('@playwright/test').APIRequestContext) {
+  return ctx.get('/api/v1/usage/custom-dashboard/dashboards');
+}
+
+function requestNotifications(ctx: import('@playwright/test').APIRequestContext) {
+  return ctx.get('/api/v1/users/notifications');
+}
+
+const GET_BUILDERS: Array<{ name: string; call: (ctx: import('@playwright/test').APIRequestContext) => Promise<import('@playwright/test').APIResponse> }> = [
+  { name: 'plain-sub-users', call: requestPlainSubUsers },
+  { name: 'service-names/distinct', call: requestServiceNames },
+  { name: 'dimensions-config', call: requestDimensionsConfig },
+  { name: 'anomaly-stats', call: requestAnomalyStats },
+  { name: 'custom-dashboard/dashboards', call: requestDashboards },
+  { name: 'notifications', call: requestNotifications },
 ];
 
-const CAUI_MONTHLY_PAYLOAD = {
-  granularity: 'Monthly' as const,
-  startDate: `${new Date().getFullYear()}-01-01`,
-  endDate: new Date().toISOString().split('T')[0],
-  metrics: ['cost'] as string[],
-  groupBy: ['service'] as string[],
-};
+function cauiPayload(granularity: 'day' | 'month'): Record<string, unknown> {
+  return {
+    periodGranLevel: granularity,
+    startDate: `${YEAR}-01-01`,
+    endDate: TODAY,
+    costType: 'total',
+    groupBy: ['service'],
+  };
+}
 
 test.describe('API Contract Tests @api @contract', () => {
 
   test('Content-Type: GET endpoints should return application/json', async ({ api }) => {
     test.setTimeout(30000);
-    for (const ep of STATELESS_ENDPOINTS) {
-      const r = await fetch(ep, api.context);
-      expect(r.ok(), `${ep.url} should return 200`).toBe(true);
+    for (const ep of GET_BUILDERS) {
+      const r = await ep.call(api.context);
+      expect(r.ok(), `${ep.name} should return 200 (got ${r.status()})`).toBe(true);
       const ct = r.headers()['content-type'];
-      expect(ct, `${ep.url} Content-Type`).toBeDefined();
-      expect(ct.toLowerCase(), `${ep.url} should return json`).toContain('application/json');
+      expect(ct, `${ep.name} Content-Type`).toBeDefined();
+      expect(ct.toLowerCase(), `${ep.name} should return json`).toContain('application/json');
     }
   });
 
   test('Response time: plain-sub-users should respond within 5 seconds @performance', async ({ api }) => {
     test.setTimeout(15000);
     const start = performance.now();
-    const r = await api.context.get('/api/v1/users/plain-sub-users');
+    const r = await requestPlainSubUsers(api.context);
     const elapsed = performance.now() - start;
-    expect(r.ok()).toBe(true);
+    expect(r.ok(), `plain-sub-users should return 200 (got ${r.status()})`).toBe(true);
     expect(elapsed).toBeLessThan(5000);
   });
 
   test('Response time: POST invoices/caui (monthly) should respond within 15 seconds @performance', async ({ api }) => {
     test.setTimeout(30000);
     const start = performance.now();
-    const r = await api.context.post('/api/v1/invoices/caui', { data: CAUI_MONTHLY_PAYLOAD });
+    const r = await api.context.post('/api/v1/invoices/caui', { data: cauiPayload('month') });
     const elapsed = performance.now() - start;
-    expect(r.ok()).toBe(true);
+    expect(r.ok(), `caui should return 200 (got ${r.status()})`).toBe(true);
     expect(elapsed).toBeLessThan(15000);
   });
 
   test('No sensitive data leakage: responses should not contain password or token fields', async ({ api }) => {
     test.setTimeout(30000);
-    for (const ep of STATELESS_ENDPOINTS) {
-      const r = await fetch(ep, api.context);
-      expect(r.ok(), `${ep.url} should return 200`).toBe(true);
+    for (const ep of GET_BUILDERS) {
+      const r = await ep.call(api.context);
+      expect(r.ok(), `${ep.name} should return 200 (got ${r.status()})`).toBe(true);
       const body = await r.json();
       const text = JSON.stringify(body).toLowerCase();
-      expect(text, `${ep.url} must not leak password`).not.toContain('"password"');
-      expect(text, `${ep.url} must not leak token`).not.toContain('"token"');
+      expect(text, `${ep.name} must not leak password`).not.toContain('"password"');
+      expect(text, `${ep.name} must not leak token`).not.toContain('"token"');
     }
   });
 
   test('Concurrent requests: 5 parallel GETs to different endpoints should all return 200', async ({ api }) => {
     test.setTimeout(30000);
-    const responses = await Promise.all(STATELESS_ENDPOINTS.map(ep => fetch(ep, api.context)));
+    const responses = await Promise.all(GET_BUILDERS.map(ep => ep.call(api.context)));
     for (let i = 0; i < responses.length; i++) {
-      expect(responses[i].status(), `${STATELESS_ENDPOINTS[i].url} should return 200`).toBe(200);
+      expect(responses[i].status(), `${GET_BUILDERS[i].name} should return 200`).toBe(200);
     }
   });
 
   test('Status code consistency: authenticated GETs should return 200, not 302 or 304', async ({ api }) => {
     test.setTimeout(30000);
-    for (const ep of STATELESS_ENDPOINTS) {
-      const r = await fetch(ep, api.context);
-      expect(r.status(), `${ep.url} should return 200`).toBe(200);
+    for (const ep of GET_BUILDERS) {
+      const r = await ep.call(api.context);
+      expect(r.status(), `${ep.name} should return 200`).toBe(200);
     }
   });
 
   test('Response body size: large responses (CAUI daily) should be under 5MB @performance', async ({ api }) => {
     test.setTimeout(60000);
-    const r = await api.context.post('/api/v1/invoices/caui', {
-      data: {
-        granularity: 'Daily',
-        startDate: `${new Date().getFullYear()}-01-01`,
-        endDate: new Date().toISOString().split('T')[0],
-        metrics: ['cost', 'usage'],
-        groupBy: ['service'],
-      },
-    });
-    expect(r.ok()).toBe(true);
+    const r = await api.context.post('/api/v1/invoices/caui', { data: cauiPayload('day') });
+    expect(r.ok(), `caui daily should return 200 (got ${r.status()})`).toBe(true);
     const body = await r.body();
     const sizeMB = body.length / (1024 * 1024);
     expect(sizeMB).toBeLessThan(5);
