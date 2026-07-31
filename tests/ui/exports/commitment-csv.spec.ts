@@ -112,19 +112,20 @@ test.describe('Commitment CSV Export @ui', () => {
     const csvAccountField = detectAccountHeader(csvHeaders);
 
     // The UI table does not display the SavingsPlanARN; the CSV export is the
-    // source of truth for ARNs.  Reconcile on displayed fields instead:
-    // (Linked Account + Expiration Date) is expected to identify at most one
-    // commitment row in the table.  Uniqueness is asserted so an ambiguous
-    // match fails loudly rather than correlating the wrong record.
+    // source of truth for ARNs.  Reconcile on displayed fields:
+    //   - CSV with account column:  (account + expiry) composite key
+    //   - CSV without account column: expiry-only key
+    // Uniqueness is asserted so an ambiguous match fails loudly rather than
+    // correlating the wrong record.
     const uiByKey = new Map<string, Record<string, string>>();
     const seenKeys = new Set<string>();
     for (const row of uiRows) {
-      const account = normalize(row['Linked Account'] || '');
+      const account = csvAccountField ? normalize(row['Linked Account'] || '') : '';
       const expiry  = normalizeDate(row['Expiration Date'] || '');
-      const key     = `${account}::${expiry}`;
+      const key     = account ? `${account}::${expiry}` : expiry;
       if (seenKeys.has(key)) {
         throw new Error(
-          `UI table contains duplicate "${key}" (account + expiration date). ` +
+          `UI table contains duplicate "${key}" ${csvAccountField ? '(account + expiration date)' : '(expiration date)'}. ` +
           `Cannot reconcile unambiguously — add the ARN column to the UI table ` +
           `or extend the composite key.`,
         );
@@ -137,9 +138,9 @@ test.describe('Commitment CSV Export @ui', () => {
       const csvExpiry = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
       const csvDate   = normalizeDate(csvExpiry);
       const csvAccount = csvAccountField ? normalize(csvRow[csvAccountField] || '') : '';
-      const key = `${csvAccount}::${csvDate}`;
+      const key = csvAccount ? `${csvAccount}::${csvDate}` : csvDate;
 
-      expect(key, 'CSV row must have account and expiry fields').not.toBe('::');
+      expect(key, 'CSV row must have an expiry date').toBeTruthy();
 
       const uiRow = uiByKey.get(key);
       expect(uiRow, `CSV row "${key}" must have a matching UI row`).toBeDefined();

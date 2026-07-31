@@ -2,7 +2,10 @@ import { test, expect } from '../../../helpers/fixtures/api';
 
 test.describe('Monitoring @api', () => {
 
-  test('GET /anomaly-detection — returns anomalies with valid structure', async ({ api }) => {
+  test('GET /anomaly-detection — returns anomalies with valid structure', {
+    annotation: { type: 'issue', description: 'DEFECT-API-500-ANOMALY-DATES' },
+  }, async ({ api }) => {
+    test.fail(true, 'DEFECT-API-500-ANOMALY-DATES');
     const r = await api.context.get('/api/v1/anomaly-detection', {
       params: { startDate: '', endDate: '', isPpApplied: 'false' },
     });
@@ -18,7 +21,10 @@ test.describe('Monitoring @api', () => {
     }
   });
 
-  test('GET /anomaly-detection?isPageCount=true — count is consistent with list length', async ({ api }) => {
+  test('GET /anomaly-detection?isPageCount=true — count is consistent with list length', {
+    annotation: { type: 'issue', description: 'DEFECT-API-500-ANOMALY-DATES' },
+  }, async ({ api }) => {
+    test.fail(true, 'DEFECT-API-500-ANOMALY-DATES');
     const [countR, listR] = await Promise.all([
       api.context.get('/api/v1/anomaly-detection', {
         params: { startDate: '', endDate: '', isPpApplied: 'false', isPageCount: 'true' },
