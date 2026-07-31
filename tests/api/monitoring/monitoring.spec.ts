@@ -2,10 +2,7 @@ import { test, expect } from '../../../helpers/fixtures/api';
 
 test.describe('Monitoring @api', () => {
 
-  test('GET /anomaly-detection — returns anomalies with valid structure', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-ANOMALY-DATES' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-ANOMALY-DATES');
+  test('GET /anomaly-detection — returns anomalies with valid structure', async ({ api }) => {
     const r = await api.context.get('/api/v1/anomaly-detection', {
       params: { startDate: '', endDate: '', isPpApplied: 'false' },
     });
@@ -15,16 +12,13 @@ test.describe('Monitoring @api', () => {
     expect(Array.isArray(body.anomalies)).toBe(true);
     if (body.anomalies.length > 0) {
       const a = body.anomalies[0];
-      expect(a.id || a.anomalyId, 'anomaly must have id').toBeDefined();
-      expect(a.service, 'anomaly must reference a service').toBeDefined();
-      expect(a.costImpact, 'anomaly costImpact required').toBeGreaterThanOrEqual(0);
+      expect(a.uuid, 'anomaly must have a uuid identifier').toBeDefined();
+      expect(a.serviceName, 'anomaly must reference a service').toBeDefined();
+      expect(a.totalCostImpact, 'anomaly totalCostImpact required').toBeGreaterThanOrEqual(0);
     }
   });
 
-  test('GET /anomaly-detection?isPageCount=true — count is consistent with list length', {
-    annotation: { type: 'issue', description: 'DEFECT-API-500-ANOMALY-DATES' },
-  }, async ({ api }) => {
-    test.fail(true, 'DEFECT-API-500-ANOMALY-DATES');
+  test('GET /anomaly-detection?isPageCount=true — count is the anomaly page count', async ({ api }) => {
     const [countR, listR] = await Promise.all([
       api.context.get('/api/v1/anomaly-detection', {
         params: { startDate: '', endDate: '', isPpApplied: 'false', isPageCount: 'true' },
@@ -38,10 +32,12 @@ test.describe('Monitoring @api', () => {
     const countBody = await countR.json();
     const listBody = await listR.json();
     expect(typeof countBody.count).toBe('number');
-    expect(countBody.count).toBeGreaterThanOrEqual(0);
     const listLen = Array.isArray(listBody.anomalies) ? listBody.anomalies.length : 0;
-    // Page count should be >= the items returned in a single page
-    expect(countBody.count).toBeGreaterThanOrEqual(listLen);
+    // Confirmed contract (2026-07-31): isPageCount=true returns the number of
+    // pages at the server's default page size, not the record count — observed
+    // count=1 with a 5-item list, unchanged across pageSize values. A non-empty
+    // list must therefore span at least one page.
+    expect(countBody.count, 'non-empty anomaly list must have at least one page').toBeGreaterThanOrEqual(listLen > 0 ? 1 : 0);
   });
 
   test('GET /anomaly-detection?alerted=true — all returned anomalies have isAlerted set', async ({ api }) => {

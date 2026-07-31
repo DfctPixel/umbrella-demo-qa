@@ -18,9 +18,13 @@ test.describe('Commitment CSV Export @ui', () => {
     totalAmount:     'TotalCommitment',
   } as const;
 
-  /** Candidate account-identifier fields that may appear in the CSV export. */
+  /**
+   * Candidate account-identifier fields that may appear in the CSV export.
+   * `linkedAccountName` is a confirmed export header (2026-07-31) whose value
+   * matches the UI's "Linked Account" column.
+   */
   const ACCOUNT_HEADER_CANDIDATES = [
-    'Linked Account', 'Account', 'AccountName', 'Customer', 'CustomerName',
+    'Linked Account', 'linkedAccountName', 'Account', 'AccountName', 'Customer', 'CustomerName',
   ];
 
   const REQUIRED = Object.values(CSV_HEADERS);
@@ -111,21 +115,32 @@ test.describe('Commitment CSV Export @ui', () => {
 
     const csvAccountField = detectAccountHeader(csvHeaders);
 
+    // Row-by-row reconciliation requires a shared unique identifier between the
+    // CSV export and the rendered table. The export's linked-account field
+    // matches the UI's "Linked Account" column; fail early when it is absent
+    // instead of correlating by expiration date or row order.
+    if (!csvAccountField) {
+      throw new Error(
+        `CSV export contains no account identifier column (searched: [${ACCOUNT_HEADER_CANDIDATES.join(', ')}]). ` +
+        `Row-by-row comparison is impossible without a shared unique identifier — ` +
+        `the export must include the linked account name or the UI must expose the Savings Plan ARN. ` +
+        `Actual headers: [${csvHeaders.join(', ')}]`,
+      );
+    }
+
     // The UI table does not display the SavingsPlanARN; the CSV export is the
-    // source of truth for ARNs.  Reconcile on displayed fields:
-    //   - CSV with account column:  (account + expiry) composite key
-    //   - CSV without account column: expiry-only key
-    // Uniqueness is asserted so an ambiguous match fails loudly rather than
-    // correlating the wrong record.
+    // source of truth for ARNs. Reconcile on the shared (linked account + expiry)
+    // composite key. Uniqueness is asserted so an ambiguous match fails loudly
+    // rather than correlating the wrong record.
     const uiByKey = new Map<string, Record<string, string>>();
     const seenKeys = new Set<string>();
     for (const row of uiRows) {
-      const account = csvAccountField ? normalize(row['Linked Account'] || '') : '';
+      const account = normalize(row['Linked Account'] || '');
       const expiry  = normalizeDate(row['Expiration Date'] || '');
-      const key     = account ? `${account}::${expiry}` : expiry;
+      const key     = `${account}::${expiry}`;
       if (seenKeys.has(key)) {
         throw new Error(
-          `UI table contains duplicate "${key}" ${csvAccountField ? '(account + expiration date)' : '(expiration date)'}. ` +
+          `UI table contains duplicate "${key}" (linked account + expiration date). ` +
           `Cannot reconcile unambiguously — add the ARN column to the UI table ` +
           `or extend the composite key.`,
         );
@@ -137,8 +152,8 @@ test.describe('Commitment CSV Export @ui', () => {
     for (const csvRow of csvRows) {
       const csvExpiry = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
       const csvDate   = normalizeDate(csvExpiry);
-      const csvAccount = csvAccountField ? normalize(csvRow[csvAccountField] || '') : '';
-      const key = csvAccount ? `${csvAccount}::${csvDate}` : csvDate;
+      const csvAccount = normalize(csvRow[csvAccountField] || '');
+      const key = `${csvAccount}::${csvDate}`;
 
       expect(key, 'CSV row must have an expiry date').toBeTruthy();
 

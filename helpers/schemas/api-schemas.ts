@@ -90,28 +90,40 @@ export const anomalyStatsSchema: Schema = [
   { key: 'resolvedAnomalies', type: 'number', min: 0, required: false },
 ];
 
-/** GET /anomaly-detection — each item in anomalies[] list */
+/**
+ * GET /anomaly-detection — each item in anomalies[] list
+ *
+ * Confirmed contract (2026-07-31, live tenant): each anomaly is identified by
+ * `uuid`; `id`/`anomalyId` do not exist in the response. The service and cost
+ * fields are `serviceName` and `totalCostImpact`, not `service`/`costImpact`.
+ */
 export const anomalySchema: Schema = [
-  { key: 'id', type: 'string', nonEmpty: true, required: false },
-  { key: 'anomalyId', type: 'string', nonEmpty: true, required: false },
-  { key: 'service', type: 'string', required: false },
-  { key: 'region', type: 'string', required: false },
-  { key: 'account_id', type: 'string', required: false },
-  { key: 'linked_account_id', type: 'string', required: false },
-  { key: 'detectedAt', type: 'string', required: false },
-  { key: 'startDate', type: 'string', required: false },
+  { key: 'uuid', type: 'string', nonEmpty: true },
+  { key: 'anomalyType', type: 'string', nonEmpty: true },
+  { key: 'serviceName', type: 'string', nonEmpty: true },
+  { key: 'totalCostImpact', type: 'number', min: 0 },
+  { key: 'accountId', type: 'string', required: false },
+  { key: 'linkedAccountId', type: 'string', required: false },
+  { key: 'linkedAccountName', type: 'string', required: false },
+  { key: 'cloudProvider', type: 'string', required: false },
+  { key: 'regionTagName', type: 'string', required: false },
+  { key: 'purchaseOption', type: 'string', required: false },
+  { key: 'usageQuantityType', type: 'string', required: false },
+  { key: 'direction', type: 'string', required: false },
   { key: 'endDate', type: 'string', required: false },
-  { key: 'score', type: 'number', min: 0, required: false },
-  { key: 'costImpact', type: 'number', min: 0, required: false },
-  { key: 'status', type: 'string', required: false },
-  { key: 'isAlerted', type: 'boolean', required: false },
-  { key: 'severity', type: 'string', required: false },
-  { key: 'description', type: 'string', required: false },
-  { key: 'impact', type: 'number', min: 0, required: false },
-  { key: 'expectedCost', type: 'number', min: 0, required: false },
-  { key: 'actualCost', type: 'number', min: 0, required: false },
-  { key: 'anomalyType', type: 'string', required: false },
-  { key: 'tags', type: 'object', required: false },
+  { key: 'updateDate', type: 'string', required: false },
+  { key: 'startTime', type: 'number', required: false },
+  { key: 'currentCost', type: 'number', min: 0, required: false },
+  { key: 'lastDayImpact', type: 'number', required: false },
+  { key: 'impact', type: 'number', required: false },
+  { key: 'percentChange', type: 'number', required: false },
+  { key: 'sumAnomalyDeltas', type: 'number', required: false },
+  { key: 'isClosed', type: 'boolean', required: false },
+  { key: 'anomalyTriggeredItems', type: 'object', required: false },
+  { key: 'baseline', type: 'array', required: false },
+  { key: 'dataPoints', type: 'array', required: false },
+  { key: 'cubeletSplits', type: 'array', required: false },
+  { key: 'cubeletLastSplit', type: 'any', required: false },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
