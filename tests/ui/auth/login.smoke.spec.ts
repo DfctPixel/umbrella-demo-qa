@@ -5,27 +5,21 @@ import { LoginPage } from '../../../pages/LoginPage';
 import { DashboardPage } from '../../../pages/DashboardPage';
 import { USER_EMAIL, USER_PASSWORD } from '../../../helpers/auth/types';
 
-const CONNECTIVITY_FLAKE_LOG = path.resolve('test-results', 'connectivity-flakes.json');
 const CONNECTIVITY_ERROR_PATTERN =
   /net::(ERR_SOCKET_NOT_CONNECTED|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED|ERR_INTERNET|ERR_PROXY|ERR_NETWORK|ERR_ADDRESS_UNREACHABLE|ERR_EMPTY_RESPONSE)/;
 
 /**
  * Connectivity failures (e.g. ERR_SOCKET_NOT_CONNECTED) are infrastructure
- * flakes, not product failures. Each occurrence is recorded in
- * test-results/connectivity-flakes.json and annotated on the test so a rising
- * failure rate stays visible in reports instead of being hidden by the retry.
+ * flakes, not product failures. Each occurrence is written to a per-test log
+ * via testInfo.outputPath() (parallel-worker safe) and annotated on the test so
+ * a rising failure rate stays visible in reports instead of being hidden by
+ * the retry.
  */
 function recordConnectivityFlake(testInfo: TestInfo, error: string): void {
   const entry = { timestamp: new Date().toISOString(), test: testInfo.title, error: error.split('\n')[0] };
-  let log: unknown[] = [];
-  try {
-    log = JSON.parse(fs.readFileSync(CONNECTIVITY_FLAKE_LOG, 'utf-8'));
-  } catch {
-    // First occurrence — start a new log.
-  }
-  log.push(entry);
-  fs.mkdirSync(path.dirname(CONNECTIVITY_FLAKE_LOG), { recursive: true });
-  fs.writeFileSync(CONNECTIVITY_FLAKE_LOG, JSON.stringify(log, null, 2));
+  const flakePath = testInfo.outputPath('connectivity-flake.json');
+  fs.mkdirSync(path.dirname(flakePath), { recursive: true });
+  fs.writeFileSync(flakePath, JSON.stringify(entry, null, 2));
   testInfo.annotations.push({ type: 'infra', description: `connectivity flake: ${entry.error}` });
 }
 

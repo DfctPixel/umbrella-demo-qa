@@ -92,12 +92,12 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: Upload connectivity flake log
+      - name: Upload connectivity flake logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: connectivity-flakes
-          path: test-results/connectivity-flakes.json
+          path: test-results/**/connectivity-flake.json
           if-no-files-found: ignore
           retention-days: 14
 

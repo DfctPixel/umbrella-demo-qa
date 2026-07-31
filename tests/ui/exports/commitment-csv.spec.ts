@@ -136,6 +136,7 @@ test.describe('Commitment CSV Export @ui', () => {
     const seenKeys = new Set<string>();
     for (const row of uiRows) {
       const account = normalize(row['Linked Account'] || '');
+      expect(account, 'UI Linked Account must be non-empty before forming the correlation key').toBeTruthy();
       const expiry  = normalizeDate(row['Expiration Date'] || '');
       const key     = `${account}::${expiry}`;
       if (seenKeys.has(key)) {
@@ -153,9 +154,8 @@ test.describe('Commitment CSV Export @ui', () => {
       const csvExpiry = normalize(csvRow[CSV_HEADERS.expirationDate] || '');
       const csvDate   = normalizeDate(csvExpiry);
       const csvAccount = normalize(csvRow[csvAccountField] || '');
+      expect(csvAccount, `CSV linked account (${csvAccountField}) must be non-empty before forming the correlation key`).toBeTruthy();
       const key = `${csvAccount}::${csvDate}`;
-
-      expect(key, 'CSV row must have an expiry date').toBeTruthy();
 
       const uiRow = uiByKey.get(key);
       expect(uiRow, `CSV row "${key}" must have a matching UI row`).toBeDefined();
