@@ -6,3 +6,4 @@ playwright/.cache/
 *.log
 .allure/
 storageState.json
+.review_flag
