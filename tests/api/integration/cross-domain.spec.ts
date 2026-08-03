@@ -52,7 +52,10 @@ test.describe('Cross-Domain Integration @api @integration', () => {
     }
   });
 
-  test('Recommendation total integrity: /list/total should be >= list page count', async ({ api }) => {
+  test('Recommendation total integrity: /list/total should be >= list page count', {
+    annotation: { type: 'issue', description: 'DEFECT-API-500-RECOMMENDATIONS' },
+  }, async ({ api }) => {
+    test.fail(true, 'DEFECT-API-500-RECOMMENDATIONS');
     test.setTimeout(60000);
     const total = await api.costUsage.getRecommendationsTotal();
     const list = await api.recommendations.getRecommendationsList({ pageNumber: 1, pageSize: 100, sort: { property: 'annualSavings', direction: 'desc' } });
@@ -61,7 +64,10 @@ test.describe('Cross-Domain Integration @api @integration', () => {
     expect(total).toBeGreaterThanOrEqual(0);
   });
 
-  test('Commitment dashboard → utilization summary: when KPIs show commitments, summary returns data', async ({ api }) => {
+  test('Commitment dashboard → utilization summary: when KPIs show commitments, summary returns data', {
+    annotation: { type: 'issue', description: 'DEFECT-API-500-COMMITMENT-DASHBOARD' },
+  }, async ({ api }) => {
+    test.fail(true, 'DEFECT-API-500-COMMITMENT-DASHBOARD');
     test.setTimeout(30000);
     const dash = await api.finops.getCommitmentDashboard({ startDate: `${year}-01-01`, endDate: today });
     const kpis = (dash.kpis as Record<string, unknown>[]) || [];

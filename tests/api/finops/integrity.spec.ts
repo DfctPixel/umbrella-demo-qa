@@ -2,8 +2,13 @@ import { test, expect } from '../../../helpers/fixtures/api';
 
 test.describe('Data Integrity @api', () => {
 
-  test('Recommendation savings should be non-negative across all list items', async ({ api }) => {
-    // Known defect (UMBR-XXX): recommendations endpoints currently return 500.
+  test('Recommendation savings should be non-negative across all list items', {
+    annotation: { type: 'issue', description: 'DEFECT-API-500-RECOMMENDATIONS' },
+  }, async ({ api }) => {
+    test.fail(true, 'DEFECT-API-500-RECOMMENDATIONS');
+    // Known defect (CI run 30856482709): /recommendationsNew/list returns 500
+    // whenever the sort field is present, even for valid pagination. The guard
+    // throws instead of letting this invariant pass vacuously on an error body.
     const recs = await api.costUsage.getRecommendationsList();
     const items = recs.page || [];
     for (const item of items) {
