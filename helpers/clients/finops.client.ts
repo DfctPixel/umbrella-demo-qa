@@ -31,9 +31,10 @@ export class FinOpsClient {
     );
   }
 
-  async getAnomalyDetectionList(params: Record<string, string>): Promise<unknown[]> {
+  /** GET /api/v1/anomaly-detection — returns an object with an `anomalies` array (same contract as MonitoringClient). */
+  async getAnomalyDetectionList(params: Record<string, string>): Promise<Record<string, unknown>> {
     const r = await this.context.get('/api/v1/anomaly-detection', { params });
-    return readJson<Record<string, unknown>[]>(r, 'GET /api/v1/anomaly-detection');
+    return readJson<Record<string, unknown>>(r, 'GET /api/v1/anomaly-detection');
   }
 
   async getAnomalyAlertRules(): Promise<unknown[]> {

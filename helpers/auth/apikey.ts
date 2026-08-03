@@ -1,5 +1,6 @@
 import { APIRequestContext } from '@playwright/test';
 import { QA_ACCOUNT_KEY, QA_ACCOUNT_TYPE_ID, QA_DIVISION_ID, QA_CURRENCY, TenantCapability } from './types';
+import { readJson } from '../clients/response';
 
 /** Unauthenticated fallback apikey for auth endpoints. */
 export const ANONYMOUS_APIKEY = '-1:-1:-1';
@@ -34,8 +35,7 @@ export async function resolveTenantCapability(jwt: string, ctx: APIRequestContex
       'frontend-request': 'true',
     },
   });
-  if (!r.ok()) throw new Error(`plain-sub-users failed: ${r.status()}`);
-  const profile: PlainSubUserResponse = await r.json();
+  const profile = await readJson<PlainSubUserResponse>(r, 'GET /api/v1/users/plain-sub-users');
 
   const userKey = profile.user_key || decodeJwtSub(jwt);
 

@@ -42,6 +42,12 @@ export default defineConfig({
       testMatch: '**/api/**/*.spec.ts',
       workers: process.env.CI ? 1 : 4,
     },
+    // Unit project: pure tests with mocked responses — no browser, no network,
+    // no auth fixture. Fast local and CI feedback for helpers and parsers.
+    {
+      name: 'unit',
+      testMatch: '**/unit/**/*.spec.ts',
+    },
     // UI projects depend on setup for pre-authenticated storage state.
     {
       name: 'ui',

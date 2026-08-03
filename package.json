@@ -6,6 +6,7 @@
     "test": "npx playwright test",
     "test:smoke": "npx playwright test --retries=0 --grep @smoke --project=api --project=ui --project=ui-login",
     "test:contract": "npx playwright test --grep @contract --project=api",
+    "test:unit": "npx playwright test --project=unit",
     "test:api": "npx playwright test --project=api --grep @api",
     "test:ui": "npx playwright test --project=ui --project=ui-exports --project=ui-login --grep @ui",
     "test:visual": "npx playwright test --project=ui-visual --grep @visual",

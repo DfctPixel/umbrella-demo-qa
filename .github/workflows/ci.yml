@@ -1,7 +1,13 @@
 name: CI - Playwright Tests
 
 on:
-  # Run from the Actions UI or `gh workflow run`; commits never start CI.
+  # Run on every push to main (QA_ARCHITECTURE_REVIEW.md-only commits are
+  # excluded so review records do not consume the shared tenant), and on
+  # demand from the Actions UI or `gh workflow run`.
+  push:
+    branches: [main]
+    paths-ignore:
+      - QA_ARCHITECTURE_REVIEW.md
   workflow_dispatch:
 
 # Tests only need to read the repository and upload artifacts; do not grant
@@ -133,3 +139,6 @@ jobs:
 
       - name: TypeScript type check
         run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: npx playwright test --project=unit --reporter=dot

@@ -9,6 +9,7 @@ import {
   assertAuthenticationConfiguration,
 } from './types';
 import { buildApikey, resolveTenantCapability, ANONYMOUS_APIKEY } from './apikey';
+import { readJson } from '../clients/response';
 
 export async function authenticate(): Promise<{
   tokens: AuthTokens;
@@ -31,8 +32,7 @@ export async function authenticate(): Promise<{
     const signinRes = await anon.post('/api/v1/users/signin', {
       data: { username: USER_EMAIL.toLowerCase(), password: USER_PASSWORD },
     });
-    if (!signinRes.ok()) throw new AuthenticationError(`Sign-in failed: ${signinRes.status()}`, 'signin', signinRes.status());
-    const tokens: AuthTokens = await signinRes.json();
+    const tokens = await readJson<AuthTokens>(signinRes, 'POST /api/v1/users/signin');
 
     const signinCookie = (signinRes.headers()['set-cookie'] || '').split(';')[0];
 
