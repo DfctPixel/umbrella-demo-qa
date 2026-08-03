@@ -4,6 +4,11 @@ on:
   # Run from the Actions UI or `gh workflow run`; commits never start CI.
   workflow_dispatch:
 
+# Tests only need to read the repository and upload artifacts; do not grant
+# the runner write access to repository contents or other GitHub resources.
+permissions:
+  contents: read
+
 # Keep only the newest manually dispatched run for each workflow/ref. A later
 # dispatch cancels stale queued or in-progress work on the same branch.
 concurrency:
@@ -50,7 +55,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-api
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/junit.xml
+          if-no-files-found: ignore
           retention-days: 7
 
   test-ui:
@@ -89,7 +97,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-ui
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/junit.xml
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload connectivity flake logs

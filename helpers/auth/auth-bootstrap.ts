@@ -1,5 +1,13 @@
 import { request, APIRequestContext } from '@playwright/test';
-import { API_URL, USER_EMAIL, USER_PASSWORD, AuthTokens, TenantCapability, AuthenticationError } from './types';
+import {
+  API_URL,
+  USER_EMAIL,
+  USER_PASSWORD,
+  AuthTokens,
+  TenantCapability,
+  AuthenticationError,
+  assertAuthenticationConfiguration,
+} from './types';
 import { buildApikey, resolveTenantCapability, ANONYMOUS_APIKEY } from './apikey';
 
 export async function authenticate(): Promise<{
@@ -7,6 +15,8 @@ export async function authenticate(): Promise<{
   requestContext: APIRequestContext;
   capability: TenantCapability;
 }> {
+  assertAuthenticationConfiguration();
+
   const anon = await request.newContext({
     baseURL: new URL(API_URL).origin,
     extraHTTPHeaders: { 'Content-Type': 'application/json', apikey: ANONYMOUS_APIKEY },

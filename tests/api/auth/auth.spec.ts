@@ -3,7 +3,7 @@ import { USER_EMAIL, API_URL } from '../../../helpers/auth/types';
 
 test.describe('Auth @api', () => {
 
-  test('JWT token should carry the correct user identity', ({ api }) => {
+  test('JWT token should carry the correct user identity @smoke', ({ api }) => {
     expect(api.tokens.jwtToken).toBeTruthy();
     expect(api.tokens.refreshToken).toBeTruthy();
     expect(api.tokens.username).toBeTruthy();

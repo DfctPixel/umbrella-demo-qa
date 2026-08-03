@@ -1,4 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
+import { readJson } from './response';
 
 export class MonitoringClient {
   constructor(public readonly context: APIRequestContext) {}
@@ -6,7 +7,7 @@ export class MonitoringClient {
   /** GET /api/v1/anomaly-detection — returns anomaly detection response with optional query params. */
   async getAnomalyDetectionList(params: Record<string, string>): Promise<Record<string, unknown>> {
     const r = await this.context.get('/api/v1/anomaly-detection', { params });
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'GET /api/v1/anomaly-detection');
   }
 
   /** GET /api/v1/anomaly-detection?isPageCount=true — returns anomaly detection page count. */
@@ -14,7 +15,7 @@ export class MonitoringClient {
     const r = await this.context.get('/api/v1/anomaly-detection', {
       params: { ...params, isPageCount: 'true' },
     });
-    return r.json();
+    return readJson<{ count: number }>(r, 'GET /api/v1/anomaly-detection?isPageCount=true');
   }
 
   /** GET /api/v1/anomaly-detection?alerted=true — returns alerted anomalies. */
@@ -22,18 +23,18 @@ export class MonitoringClient {
     const r = await this.context.get('/api/v1/anomaly-detection', {
       params: { ...params, alerted: 'true' },
     });
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'GET /api/v1/anomaly-detection?alerted=true');
   }
 
   /** GET /api/v1/anomaly-detection/rules — returns anomaly alert rules array. */
   async getAnomalyAlertRules(): Promise<Record<string, unknown>[]> {
     const r = await this.context.get('/api/v1/anomaly-detection/rules');
-    return r.json();
+    return readJson<Record<string, unknown>[]>(r, 'GET /api/v1/anomaly-detection/rules');
   }
 
   /** GET /api/v1/usage/alerts — returns usage alerts. */
   async getUsageAlerts(): Promise<Record<string, unknown>[]> {
     const r = await this.context.get('/api/v1/usage/alerts');
-    return r.json();
+    return readJson<Record<string, unknown>[]>(r, 'GET /api/v1/usage/alerts');
   }
 }

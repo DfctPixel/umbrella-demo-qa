@@ -58,7 +58,7 @@ function cauiPayload(granularity: 'day' | 'month'): Record<string, unknown> {
 
 test.describe('API Contract Tests @api @contract', () => {
 
-  test('Content-Type: GET endpoints should return application/json', async ({ api }) => {
+  test('Content-Type: GET endpoints should return application/json @smoke', async ({ api }) => {
     test.setTimeout(30000);
     for (const ep of GET_BUILDERS) {
       const r = await ep.call(api.context);

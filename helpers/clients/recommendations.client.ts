@@ -1,4 +1,5 @@
 import { APIRequestContext } from '@playwright/test';
+import { readJson } from './response';
 
 export class RecommendationsClient {
   constructor(public readonly context: APIRequestContext) {}
@@ -6,13 +7,13 @@ export class RecommendationsClient {
   /** POST /api/v1/recommendationsNew/heatmap — returns recommendations heatmap data. */
   async getRecommendationsHeatmap(): Promise<Record<string, unknown>> {
     const r = await this.context.post('/api/v1/recommendationsNew/heatmap', { data: {} });
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'POST /api/v1/recommendationsNew/heatmap');
   }
 
   /** POST /api/v1/recommendationsNew/heatmap/summary — returns heatmap summary. */
   async postHeatmapSummary(): Promise<Record<string, unknown>> {
     const r = await this.context.post('/api/v1/recommendationsNew/heatmap/summary', { data: {} });
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'POST /api/v1/recommendationsNew/heatmap/summary');
   }
 
   /** POST /api/v1/recommendationsNew/heatmap/dynamicFilter/{filterName} — returns filter values for a given filter name. */
@@ -21,13 +22,16 @@ export class RecommendationsClient {
       `/api/v1/recommendationsNew/heatmap/dynamicFilter/${filterName}`,
       { data: {} },
     );
-    return r.json();
+    return readJson<Record<string, unknown>>(
+      r,
+      `POST /api/v1/recommendationsNew/heatmap/dynamicFilter/${filterName}`,
+    );
   }
 
   /** POST /api/v1/recommendationsNew/heatmap/dynamicRanges — returns dynamic range definitions. */
   async postHeatmapDynamicRanges(): Promise<Record<string, unknown>> {
     const r = await this.context.post('/api/v1/recommendationsNew/heatmap/dynamicRanges', { data: {} });
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'POST /api/v1/recommendationsNew/heatmap/dynamicRanges');
   }
 
   /** POST /api/v1/recommendationsNew/heatmap/dynamicFilter/service?invoiceMode={invoiceMode} — returns service filter values for the given invoice mode. */
@@ -36,7 +40,10 @@ export class RecommendationsClient {
       '/api/v1/recommendationsNew/heatmap/dynamicFilter/service',
       { data: {}, params: { invoiceMode } },
     );
-    return r.json();
+    return readJson<Record<string, unknown>>(
+      r,
+      'POST /api/v1/recommendationsNew/heatmap/dynamicFilter/service',
+    );
   }
 
   /** POST /api/v1/recommendationsNew/heatmap/dynamicFilter/type_id?invoiceMode={invoiceMode} — returns type_id filter values for the given invoice mode. */
@@ -45,36 +52,39 @@ export class RecommendationsClient {
       '/api/v1/recommendationsNew/heatmap/dynamicFilter/type_id',
       { data: {}, params: { invoiceMode } },
     );
-    return r.json();
+    return readJson<Record<string, unknown>>(
+      r,
+      'POST /api/v1/recommendationsNew/heatmap/dynamicFilter/type_id',
+    );
   }
 
   /** GET /api/v1/recommendationsNew/heatmap/groupByOptions — returns available group-by options. */
   async getHeatmapGroupByOptions(): Promise<Record<string, unknown>[]> {
     const r = await this.context.get('/api/v1/recommendationsNew/heatmap/groupByOptions');
-    return r.json();
+    return readJson<Record<string, unknown>[]>(r, 'GET /api/v1/recommendationsNew/heatmap/groupByOptions');
   }
 
   /** POST /api/v1/recommendationsNew/list — returns paginated recommendations list. */
   async getRecommendationsList(params: Record<string, unknown>): Promise<Record<string, unknown>> {
     const r = await this.context.post('/api/v1/recommendationsNew/list', { data: params });
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'POST /api/v1/recommendationsNew/list');
   }
 
   /** POST /api/v1/recommendationsNew/list/columns — returns column definitions for the recommendations list. */
   async getRecommendationsListColumns(): Promise<Record<string, unknown>[]> {
     const r = await this.context.post('/api/v1/recommendationsNew/list/columns', { data: {} });
-    return r.json();
+    return readJson<Record<string, unknown>[]>(r, 'POST /api/v1/recommendationsNew/list/columns');
   }
 
   /** GET /api/v1/recommendationsNew/views — returns available recommendations views. */
   async getRecommendationsViews(): Promise<Record<string, unknown>[]> {
     const r = await this.context.get('/api/v1/recommendationsNew/views');
-    return r.json();
+    return readJson<Record<string, unknown>[]>(r, 'GET /api/v1/recommendationsNew/views');
   }
 
   /** GET /api/v1/recommendations/report — returns the recommendations report. */
   async getRecommendationsReport(): Promise<Record<string, unknown>> {
     const r = await this.context.get('/api/v1/recommendations/report');
-    return r.json();
+    return readJson<Record<string, unknown>>(r, 'GET /api/v1/recommendations/report');
   }
 }

@@ -2,6 +2,12 @@
 
 Playwright E2E test suite for the [Umbrella FinOps platform](https://dev.umbrellacost.dev).
 
+## QA operating documents
+
+- [QA test strategy](QA_TEST_STRATEGY.md) — test pyramid, lanes, data isolation, web/API/mobile strategy, CI, and definition of done.
+- [Manual exploratory charters](MANUAL_EXPLORATORY_CHARTERS.md) — time-boxed web-app sessions with FinOps data-integrity, security, accessibility, responsive, and resilience missions.
+- [Architecture review handoff](QA_ARCHITECTURE_REVIEW.md) — current reviewer findings and implementation handoff.
+
 ## Setup
 
 ```bash
@@ -11,6 +17,15 @@ npm install
 npx playwright install chromium
 copy .env.example .env   # set USER_EMAIL, USER_PASSWORD, QA_ACCOUNT_KEY, QA_ACCOUNT_TYPE_ID
 npm test                  # run all tests
+```
+
+Useful lanes:
+
+```bash
+npm run test:smoke       # fast critical path
+npm run test:contract    # API contract checks
+npm run test:api         # API regression
+npm run test:ui          # UI regression
 ```
 
 ### Required environment variables
@@ -39,7 +54,10 @@ error message at fixture setup time.
 - **Worker-scoped API fixture** — API tests share one authenticated context per Playwright worker via `helpers/fixtures/api.ts`, which uses a `scope: 'worker'` fixture. The context is created once and disposed when the worker shuts down, eliminating redundant per-file auth flows.
 - **Setup project for UI state** — A dedicated `setup` Playwright project (`tests/setup/auth.setup.ts`) authenticates once, injects tokens into browser storage, and saves `storageState.json`. The `ui` and `ui-exports` projects declare `dependencies: ['setup']` so every worker starts pre-authenticated without re-running the login flow. The `ui-login` project does not depend on setup because it tests the login flow itself.
 - **5 Playwright projects** — `setup` (generates storageState), `api` (browserless, pure APIRequestContext), `ui` (journeys with storageState), `ui-exports` (exports with storageState), `ui-login` (fresh login each time). The API project runs browserlessly — no Chromium launch — and is capped at 4 workers to avoid tenant throttling.
-- **10 parallel workers** — Tests are fully parallelized with 10 workers. The API project is capped at 4 workers due to the shared QA tenant's rate limits. API tests use a worker-scoped fixture; UI projects reuse `storageState.json` from the setup project.
+- **Worker isolation** — Local runs use up to 10 workers (API up to 4); CI is deliberately capped at one worker because the shared QA tenant is a scarce resource. API tests use a worker-scoped fixture; UI projects reuse `storageState.json` from the setup project.
+- **Guarded API clients** — `helpers/clients/response.ts` rejects non-2xx responses, unexpected content types, and invalid JSON before a test can assert against a misleading payload. Errors identify the endpoint and status without dumping tenant data.
+- **CI diagnostics** — Playwright emits both HTML and JUnit reports. CI uploads the reports and the selected JUnit/connectivity diagnostics even after failures, while avoiding blanket trace uploads that could contain authenticated network headers.
+- **Fail-fast environment checks** — authentication configuration is validated before any network call, so missing CI secrets produce an actionable configuration error instead of a confusing realm/sign-in failure.
 
 ## AI Tools Used
 

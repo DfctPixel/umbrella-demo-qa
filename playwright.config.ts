@@ -5,9 +5,14 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 10,
+  // A shared QA tenant is a scarce resource. Keep CI deterministic; local
+  // development can still use parallel workers for fast feedback.
+  workers: process.env.CI ? 1 : 10,
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
+    // JUnit is consumed by CI test-report integrations; HTML remains the
+    // human-readable artifact for trace/screenshot inspection.
+    ['junit', { outputFile: 'test-results/junit.xml' }],
     ['list'],
   ],
   timeout: 60_000,
@@ -35,7 +40,7 @@ export default defineConfig({
     {
       name: 'api',
       testMatch: '**/api/**/*.spec.ts',
-      workers: 4,
+      workers: process.env.CI ? 1 : 4,
     },
     // UI projects depend on setup for pre-authenticated storage state.
     {

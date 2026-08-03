@@ -28,7 +28,7 @@ function tooltipDateToIso(tooltipDate: string, year: string): string {
 }
 
 test.describe('Cost & Usage Journey @ui', () => {
-  test('should navigate to Cost & Usage Explorer and display search control and cost value', async ({ authenticatedPage: page }) => {
+  test('should navigate to Cost & Usage Explorer and display search control and cost value @smoke', async ({ authenticatedPage: page }) => {
     const dashboardPage = new DashboardPage(page);
     const costUsagePage = new CostUsageExplorerPage(page);
     await dashboardPage.navigateToCostAndUsageExplorer();

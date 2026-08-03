@@ -41,3 +41,19 @@ export class AuthenticationError extends Error {
     this.name = 'AuthenticationError';
   }
 }
+
+/** Fail before making network calls when the authentication contract is incomplete. */
+export function assertAuthenticationConfiguration(): void {
+  const missing = [
+    USER_EMAIL.trim() ? null : 'USER_EMAIL',
+    USER_PASSWORD.trim() ? null : 'USER_PASSWORD',
+  ].filter((name): name is string => name !== null);
+
+  if (missing.length > 0) {
+    throw new AuthenticationError(
+      `Authentication configuration is incomplete; missing ${missing.join(', ')}. ` +
+      'Set these values in .env or the CI secret store.',
+      'configuration',
+    );
+  }
+}

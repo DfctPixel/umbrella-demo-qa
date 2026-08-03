@@ -37,7 +37,7 @@ async function gotoWithConnectivityRetry(page: Page, url: string, testInfo: Test
 
 test.describe('Login Smoke @ui', () => {
 
-  test('valid login redirects to dashboard', async ({ page }) => {
+  test('valid login redirects to dashboard @smoke', async ({ page }) => {
     const loginPage = new LoginPage(page);
     const dashboardPage = new DashboardPage(page);
     await gotoWithConnectivityRetry(page, '/log_in', test.info());
