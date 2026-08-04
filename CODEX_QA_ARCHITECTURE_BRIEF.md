@@ -2,34 +2,49 @@
 
 ## Decision
 
-Keep the Playwright/TypeScript foundation and the useful read-only checks, but do **not** call the current suite enterprise-ready yet. It has a promising API surface (133 API tests plus seven UI tests) but too many environment-tolerant assertions and too little deterministic UI, calculation, accessibility, visual, mutation, and multi-tenant coverage.
+Keep the Playwright/TypeScript foundation and the useful read-only checks, but do **not** call the current suite enterprise-ready yet. The latest green gate executes 133 API tests, 8 UI tests, and 10 unit tests. It now has guarded clients, worker/setup isolation, strict expected-failure handling, and two committed visual baselines, but still lacks native accessibility, mutation, multi-tenant, and dedicated performance/security gates.
 
 The goal is not a large test count. It is a small, trustworthy release gate backed by stronger contract, financial-reconciliation, and end-to-end tests, with deeper coverage running outside the pull-request lane.
 
-## Evidence from this review
+## Current state (reviewed against `main` at `cb93d3c`)
 
-- `npx tsc --noEmit` passed.
-- The complete 133-test API suite passed on QA.
-- The three Cost & Usage journey tests passed on QA, including the chart tooltip/API comparison.
-- Both commitment CSV export checks passed on QA.
-- A seven-test UI run produced one transient failure: `forgot password link visible on password step` never reached the password step. Its focused two-test rerun then passed. Treat this as a real flake until the state transition is asserted explicitly.
-- ESLint reports 105 `playwright/no-conditional-in-test` warnings. Most allow more than one incompatible outcome or skip the assertion when data is absent.
-- The API suite is partitioned into 133 tests. Its runners should be retained, but test count must not be mistaken for contract or business-rule coverage.
+- Latest CI run: [30856889558](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30856889558), green.
+- Lint/type-check/unit job: ESLint and TypeScript passed; 10 unit tests passed.
+- API job: 133 tests passed. Three confirmed backend HTTP 500 contracts are
+  represented as explicit expected failures (`DEFECT-API-500-RECOMMENDATIONS`,
+  `DEFECT-API-500-COMMITMENT-DASHBOARD`, and
+  `DEFECT-API-500-ANOMALY-DATES`).
+- UI job: 8 tests passed. The visual project is available on demand, but it is
+  not part of the default workflow and only two of its three screenshots have
+  committed baselines.
+- Current CI is push-triggered for non-review commits to `main` and also
+  supports manual dispatch; concurrency cancels older runs for the same ref.
 
-## Findings requiring change
+## Historical evidence from the original architecture review
+
+- The original review evidence and historical findings remain below for traceability. They are not the current CI status.
+
+## Findings requiring change (historical baseline)
+
+The original findings table is retained for traceability. The setup-project,
+worker-scoped API fixture, profile-derived tenant capability, guarded-client,
+CSV-index, and chart-capture remediations are now implemented. Remaining gaps
+are accessibility/keyboard automation, responsive projects, mutation and
+multi-tenant lifecycle coverage, dedicated security/performance jobs, and a
+deterministic visual baseline for the dashboard KPI card.
 
 | Priority | Finding | Why it matters | Required remediation |
 |---|---|---|
 | P0 | Many tests accept both success and error responses as “handled gracefully.” | A regression can change valid input to an error (or invalid input to 200) without failing a test. | Replace each with the documented status, error schema/code, and response invariant. Unknown behaviour is a product/API-spec decision, not a test condition. |
 | P0 | Financial tests assume all cost values are non-negative and use JavaScript `number`. | Credits, refunds, adjustments, and discounts can legitimately be negative; floating-point comparisons can conceal monetary errors. | Define a cost-metric semantics table and use integer minor units or a decimal library. Assert the exact expected sign and rounded display value per metric. |
-| P0 | `globalSetup` authenticates and launches Chromium for API-only runs. | API CI carries UI setup cost and hides setup failures in a broad catch. | Replace it with a Playwright `setup` project that creates storage state, make only authenticated UI projects depend on it, and give API its own worker fixture. |
-| P0 | Account/division defaults are hard-coded (`111111177`, `0`). | The suite is coupled to one tenant and can validate the wrong account after a role or tenant change. | Define a versioned `qa-tenant.json`/environment contract. Derive identity/account from the authenticated profile and fail fast when required tenant capabilities are absent. |
-| P1 | The chart reconciliation intercepts every CAUI response, chooses the first matching month/day label, and compares whole-dollar precision. | It can compare the tooltip against an unrelated request or an incorrect year/filter; errors below about $0.50 pass. | Wait for the exact chart response by URL *and validated request body*, use ISO date + currency, retain the filter state, and compare the UI-rounded value using an explicit rounding rule. |
+| P0 | `globalSetup` authenticates and launches Chromium for API-only runs. | API CI carries UI setup cost and hides setup failures in a broad catch. | **Resolved:** the `setup` project now owns browser storage state and API uses a worker-scoped request fixture. Keep the dependency boundary explicit. |
+| P0 | Account/division defaults are hard-coded (`111111177`, `0`). | The suite is coupled to one tenant and can validate the wrong account after a role or tenant change. | **Resolved:** capability is profile-derived with validated `QA_ACCOUNT_KEY`/`QA_ACCOUNT_TYPE_ID` fallbacks. Keep CI secrets configured and rotate them. |
+| P1 | The chart reconciliation intercepts every CAUI response, chooses the first matching month/day label, and compares whole-dollar precision. | It can compare the tooltip against an unrelated request or an incorrect year/filter; errors below about $0.50 pass. | **Improved:** the test validates the request shape and capture flag, but the default-period precondition can still skip value comparison; provision a deterministic data period. |
 | P1 | UI locators use `.first()`, `.nth()`, DOM ancestry, and CSS implementation details. | Page redesigns can silently redirect a test to the wrong element. | Add product-owned `data-testid` contracts for business controls, chart series/points, totals, empty/error states, table rows, and export controls. Page objects may compose those contracts but must not encode layout. |
-| P1 | UI coverage is only login, one Cost & Usage path, and two exports; there is no visual or accessibility coverage. | Calculations can be correct in API responses but wrong, hidden, or inaccessible in the UI. | Add deterministic UI/API oracles, visual assertions, and axe checks described below. |
-| P1 | The shared module “singleton” API fixture is only shared inside a Node worker and is never disposed centrally. | With parallel files it does not achieve the claimed global reuse and obscures resource ownership. | Implement a worker-scoped Playwright fixture that creates one authenticated context per worker and disposes it in teardown. |
+| P1 | **Historical:** UI coverage was only login, one Cost & Usage path, and two exports; visual and accessibility coverage were absent. | Calculations can be correct in API responses but wrong, hidden, or inaccessible in the UI. | **Partially resolved:** UI journeys, exports, and a visual project now exist; add axe/keyboard checks and complete the visual baseline set. |
+| P1 | **Historical:** the shared module “singleton” API fixture was only shared inside a Node worker and was never disposed centrally. | With parallel files it did not achieve the claimed global reuse and obscured resource ownership. | **Resolved:** the API context is worker-scoped and disposed by the fixture; extend the same lifecycle discipline to future mutation fixtures. |
 | P1 | Schema tests are hand-inferred rather than generated from a versioned API contract. | They codify today’s observed responses, not a product agreement. | Publish OpenAPI 3.1/3.2; validate responses, parameters, errors, and security schemes against it in CI. |
-| P2 | CSV parsing, download paths, `any`, and synchronous file I/O live in a reusable UI component. | It is brittle for quoted/multiline fields and difficult to reuse safely in parallel. | Use `testInfo.outputPath`, Playwright `Download`, a typed CSV parser, and a CSV-to-API column mapping. |
+| P2 | CSV parsing, download paths, `any`, and synchronous file I/O live in a reusable UI component. | It is brittle for quoted/multiline fields and difficult to reuse safely in parallel. | **Improved:** downloads use per-test output paths, strict parsing, duplicate detection, and explicit UI/export field mapping. Replace remaining `any` and extract reusable pure parsers into the unit project. |
 | P2 | Performance checks use one remote shared-environment sample and hard-coded thresholds. | This is not a repeatable performance test or an SLO. | Keep a light latency smoke check, but move load/percentile/error-rate scenarios to k6/Gatling against an approved environment and publish SLOs. |
 | P2 | Artifacts can include user email, billing screens, and potentially sensitive test data. | CI report sharing becomes a data-handling risk. | Use a dedicated synthetic tenant, redact sensitive text in artifacts, restrict artifact access, and retain them for the minimum period. |
 
@@ -73,6 +88,12 @@ support/
 | `performance` | Scheduled / release candidate | latency distribution, load, rate-limit, and large-query budgets | non-PR environment gate |
 | `security` | Scheduled and release candidate | OWASP API authorization, property exposure, resource consumption | security gate |
 
+The lane matrix is the target architecture, not the current workflow topology.
+At `cb93d3c`, CI runs lint/type-check/unit, API regression, and UI regression on
+each non-review push to `main` or manual dispatch. Visual is available through
+`npm run test:visual` but is not a default job; accessibility, security,
+performance, and mutation lanes remain planned or scheduled work.
+
 ## FinOps data-quality oracle catalogue
 
 Each rule needs an owner, metric definition, source of truth, currency/rounding rule, time-zone rule, allowed tolerance, and test-data precondition. Do not write a test until those are explicit.
@@ -109,12 +130,17 @@ These rules align with the FinOps Foundation guidance to normalize data, evaluat
 
 ## Implementation sequence for the coder
 
+The first setup/authentication/fixture items in the historical sequence are
+complete at `cb93d3c`. The remaining implementation priorities are listed
+below; historical steps are retained so the architecture decisions remain
+auditable.
+
 ### P0 — make current signals trustworthy
 
 1. Replace `globalSetup` with a UI-only setup project/dependency. API tests must run without Chromium and without creating browser state.
 2. Add worker fixtures for the API context, tenant capability, and cleanup registry; dispose all contexts deterministically.
 3. Fix the login transition flake: assert `Next` enabled, click it, and assert a unique password-step marker before looking for `Forgot password`. Capture the relevant SSO/sign-in response and attach diagnostic details on failure.
-4. Remove acceptance-conditionals from the 105 warnings. Each test gets a precise status/body contract or a documented `test.skip(condition, reason)` tied to a missing tenant capability.
+4. Reduce the 90 ESLint warnings reported by the latest CI run. Each test gets a precise status/body contract or a documented `test.skip(condition, reason)` tied to a missing tenant capability; do not weaken a contract to silence a warning.
 5. Replace the hard-coded account fallback with required tenant configuration and profile-derived selection; fail setup if the expected account cannot be used.
 6. Upgrade the Cost & Usage reconciliation test to pin period/account/filter state, identify the exact CAUI request, use ISO dates and a money oracle, and validate card/chart/table/CSV against the same response.
 
@@ -131,6 +157,18 @@ These rules align with the FinOps Foundation guidance to normalize data, evaluat
 1. Add PR smoke, post-deploy regression, scheduled visual/security, and release-candidate performance jobs. Capture JUnit/HTML/traces, flake trend, duration, and coverage by business risk.
 2. Add test-data lifecycle controls, artifact redaction, ownership/rotation for credentials, and a test quarantine policy with expiry.
 3. Move load testing out of Playwright and define throughput, p95/p99 latency, error-rate, and data-volume SLOs.
+
+## Current remaining priorities
+
+1. Extract reusable money/date/CSV oracles from UI specs into the unit project
+   and cover malformed, negative, rounding, and timezone cases.
+2. Provision deterministic data periods so chart/API value comparisons do not
+   skip on empty default data.
+3. Add accessibility/keyboard checks, responsive phone/tablet projects, and a
+   reviewed dashboard KPI visual baseline.
+4. Link every `DEFECT-API-500-*` expected failure to an owner, external issue,
+   and expiry/review condition; remove the marker only when the product defect
+   is fixed and the test passes unexpectedly.
 
 ## Definition of done
 

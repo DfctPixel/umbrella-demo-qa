@@ -30,15 +30,21 @@ Demo-only patterns were intentionally not copied: hard-coded credentials, positi
 
 | Layer | Purpose | Examples in this repository | Execution | Gate |
 | --- | --- | --- | --- | --- |
-| Pure/unit | Money, dates, key construction, parsing, and normalization | `strictParseAmount`, date and aggregation oracles | Local and CI | Blocking |
-| Contract | Status, headers, request/response schemas, error envelopes, auth scheme | `tests/api/contracts`, `tests/api/schemas`, negative tests | Every intentional CI dispatch | Blocking |
+| Pure/unit | Shared guards, money/date/key parsing, and independent normalization oracles | `tests/unit/response.spec.ts`; calculation helpers currently embedded in UI tests and should be extracted when reused | Local and CI | Blocking |
+| Contract | Status, headers, request/response schemas, error envelopes, auth scheme | `tests/api/contracts`, `tests/api/schemas`, negative tests | Every non-review push to `main` or manual dispatch | Blocking |
 | API integration | Cross-endpoint consistency and FinOps invariants | `tests/api/integration`, `tests/api/finops` | Regression lane | Blocking before promotion |
 | Component/behavior | A page or reusable table's visible behavior | Page objects and `DataTable` checks | Regression lane | Blocking for changed domain |
 | E2E workflow | Critical user task from navigation through rendered result | Login, Cost & Usage, commitment export | Smoke + regression | Blocking for release |
-| Visual/accessibility | Stable visual states and semantic/keyboard behavior | `tests/ui/visual`; planned axe/keyboard lane | UI change or scheduled | Blocking for approved baselines; accessibility defect gate |
+| Visual/accessibility | Stable visual states and semantic/keyboard behavior | `tests/ui/visual` (two committed baselines); axe/keyboard lane planned | Manual UI change or scheduled run | Blocking for approved baselines; accessibility defect gate |
 | Release/manual | Unknowns, usability, compatibility, abuse, and exploratory discovery | `MANUAL_EXPLORATORY_CHARTERS.md` | Each release or risk change | Release sign-off |
 
-The current suite is API-heavy by design. That is healthy for a remote FinOps system, but test count is not coverage. Each new feature should add the smallest useful unit/oracle test, a contract check, an integration invariant where data crosses endpoints, and only then an E2E journey.
+The current suite is API-heavy by design: the latest green CI run executed 133 API,
+8 UI, and 10 unit tests. That is healthy for a remote FinOps system, but test
+count is not coverage. Each new feature should add the smallest useful
+unit/oracle test, a contract check, an integration invariant where data crosses
+endpoints, and only then an E2E journey.
+The same run reported 0 ESLint errors and 90 warnings, primarily conditional
+test and skipped-test guidance that remains technical-debt work.
 
 ## Executable lanes
 
@@ -55,7 +61,10 @@ Tests use tags in the title so lanes are discoverable and reviewable:
 | Performance | `@performance` | Latency and payload smoke only | Load/percentile testing belongs in a dedicated environment |
 | Manual | charter IDs `M-*` | Exploratory and compatibility sessions | Evidence required for release sign-off |
 
-The repository scripts expose the first three lanes. A lane must fail if no test matched it; an empty lane is a configuration defect.
+The repository scripts expose unit, smoke, contract, API, UI, and visual lanes.
+Security, load/performance, accessibility, and manual charters remain separate
+scheduled or release activities. A deliberately invoked lane must fail if no
+test matched it; an empty lane is a configuration defect.
 
 ## Environment and test data contract
 
@@ -102,12 +111,16 @@ Use secure platform storage for tokens (Keychain/Keystore), never plain preferen
 
 ## Reliability and CI policy
 
-- CI runs one workflow per branch/ref at a time; a newer intentional dispatch cancels stale work.
+- CI runs on every non-review push to `main` and on manual dispatch. The
+  workflow/ref concurrency group cancels any older queued or in-progress run
+  when a newer push or dispatch starts; it does not make CI manual-only.
 - CI uses one worker for reproducibility and shared-tenant safety. Sharding is preferred over increasing worker pressure when runtime becomes material; see [Playwright sharding](https://playwright.dev/docs/next/test-sharding).
 - Retries are limited to one diagnostic retry in CI. A test that passes only on retry is reported as flaky and counted against a flake budget.
 - Keep traces on first retry, screenshots on failure, and videos only when needed. Upload reports only when tests run and retain them for the minimum useful period.
 - Review artifacts for credentials, emails, account identifiers, ARNs, tags, and raw API bodies before sharing. Sanitize diagnostics structurally (field names/types, status, request classification), not by dumping payloads.
-- Required checks must be named consistently: lint/typecheck, smoke, contract, regression, visual/a11y, and security/performance as applicable.
+- The current required jobs are lint/typecheck/unit, API regression, and UI
+  regression. Smoke, visual/a11y, security, and performance remain risk-based
+  lanes until they are promoted to explicit CI jobs.
 
 ## Definition of done for a new feature
 
@@ -117,4 +130,7 @@ Use secure platform storage for tokens (Keychain/Keystore), never plain preferen
 4. A cross-endpoint invariant exists when the feature displays or exports calculated data.
 5. One critical E2E path proves the user can complete the task and sees the calculated result.
 6. Accessibility, responsive/mobile, visual, performance, and exploratory coverage are either implemented or have a documented risk-based reason to defer.
-7. CI evidence and any known defects/expected failures are recorded with an owner and issue ID.
+7. CI evidence and any known defects/expected failures are recorded with an
+   owner, an externally traceable issue ID, and an expiry/review condition. The
+   current internal markers (`DEFECT-API-500-*`) are temporary until linked to
+   product defect records.

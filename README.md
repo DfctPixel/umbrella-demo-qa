@@ -22,12 +22,12 @@ npm test                  # run all tests
 Useful lanes:
 
 ```bash
-npm run test:unit         # pure unit tests (response guards, parsers)
+npm run test:unit         # pure unit tests (response guards and parsing diagnostics)
 npm run test:smoke        # fast critical path
 npm run test:contract     # API contract checks
 npm run test:api          # API regression
 npm run test:ui           # UI regression
-npm run test:visual       # approved visual baselines
+npm run test:visual       # approved visual baselines (currently two committed baselines)
 ```
 
 CI runs on every push to `main` and on manual dispatch:
@@ -41,6 +41,12 @@ review records do not consume the shared QA tenant. The workflow keeps only the
 newest run for a branch and cancels an older run when a newer one starts. Use
 the `test:visual:update` script only when a reviewed visual-baseline change is
 intentional.
+
+The default CI workflow currently runs three jobs: lint/type-check/unit (10
+unit tests), API regression (133 tests), and UI regression (8 tests). Visual
+tests are available on demand but are not part of the default CI gate; the
+dashboard KPI baseline is still an approved-baseline gap. The latest green
+run for `cb93d3c` is [30856889558](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30856889558).
 
 ### Required environment variables
 
@@ -81,7 +87,10 @@ error message at fixture setup time.
 
 | Issue | Impact | Workaround |
 |-------|--------|------------|
-| **Pricing page returns 404** | Cannot test pricing feature at all | Skipped |
-| **`signin-with-token` returns HTML, not JSON** | Identity verification test skipped — Playwright's `APIRequestContext` gets an HTML page, browser works fine | Test marked `.skip` |
+| **Pricing route has no dedicated automated coverage** | The route was reachable in the 2026-07-29 exploration, but it is not covered by the current UI lane | Add a focused smoke/contract check when the product contract is defined |
+| **`signin-with-token` response body is not consumed by bootstrap** | Authentication uses its response headers for the session cookie; a client method that assumes JSON is not currently covered | Keep header-only bootstrap behavior explicit and add a contract test when the response body contract is published |
 | **Create Budget button disabled** | No budget write tests for this user role | All budget tests are read-only API |
 | **CAUI API returns per-service-per-day, not daily aggregates** | Chart shows daily totals but raw data is per-service | Sum `total_cost` across services for each `usage_date` |
+| **Recommendations list returns HTTP 500 with canonical sorting** | Positive-path list/integrity checks cannot exercise the payload contract | Tests are explicit expected failures under `DEFECT-API-500-RECOMMENDATIONS`; remove the marker only after the API is fixed |
+| **Commitment dashboard returns HTTP 500 for the cross-domain request** | The cross-domain KPI-to-utilization invariant cannot run for that request shape | Tracked as `DEFECT-API-500-COMMITMENT-DASHBOARD`; keep the strict response guard |
+| **Anomaly invalid/reversed dates return HTTP 500** | Validation contract remains unresolved for these inputs | Tracked as `DEFECT-API-500-ANOMALY-DATES`; preserve exact expected status once product behavior is agreed |

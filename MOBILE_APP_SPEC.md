@@ -2,6 +2,12 @@
 
 > Generated: 2026-07-29 | Based on live exploration of dev.umbrellacost.dev
 
+> **Status reviewed 2026-08-04:** This is a product/discovery specification,
+> not evidence of an implemented native mobile app. The current repository
+> automates the web application only. The shared API contracts, response guards,
+> tenant capability model, and calculation oracles are the intended reuse points
+> when native Android/iOS automation is introduced.
+
 ---
 
 ## 1. Authentication Flow
@@ -71,7 +77,12 @@ Response: {
   ...user profile fields
 }
 ```
-Extract `user_key`, `accountKey` (from first account), and `accountTypeId` to construct the authenticated API key.
+Extract `user_key`, `accountKey`, and `accountTypeId` from the profile when
+`accounts[0]` is present. If the tenant profile omits accounts, the current QA
+contract requires validated `QA_ACCOUNT_KEY` and `QA_ACCOUNT_TYPE_ID` fallback
+configuration; a native client must surface the missing capability rather than
+silently using a hard-coded account. Construct the authenticated API key only
+after this capability is resolved.
 
 ### Header Specification
 

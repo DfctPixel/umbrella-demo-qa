@@ -2,7 +2,33 @@
 
 This is the durable handoff between the QA reviewer and the implementation agent. Read it before making framework changes. Do not mark an item resolved without recording the command output that verifies it.
 
-## Current status
+## Current status — updated 2026-08-04
+
+**Review target:** `cb93d3c` — `test(qa): mark guarded-client tests on confirmed 500s as expected-fail`
+**Decision:** CI green with documented expected failures; conditional approval only
+
+### Latest CI evidence
+
+| Gate | Result |
+| --- | --- |
+| [CI run 30856889558](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30856889558) | Completed successfully |
+| Lint and TypeScript | Passed; ESLint reports 0 errors and 90 warnings |
+| Unit project | 10 passed |
+| API project | 133 passed; confirmed 500 defects are explicit expected failures |
+| UI project | 8 passed |
+| Visual project | Available on demand; not part of the default workflow; two of three baselines committed |
+
+### Active risks and handoff
+
+1. `DEFECT-API-500-RECOMMENDATIONS`: sorted recommendations list still returns HTTP 500. Keep the strict response guard and expected-failure markers until the product defect is fixed and linked to an owner/issue.
+2. `DEFECT-API-500-COMMITMENT-DASHBOARD`: the cross-domain dashboard request still returns HTTP 500. Confirm the product request contract before changing the test.
+3. `DEFECT-API-500-ANOMALY-DATES`: invalid/reversed date validation remains unresolved and returns HTTP 500.
+4. The dashboard KPI visual baseline is missing; visual is not a default CI gate. Accessibility, responsive, security, performance, and mutation lanes remain planned.
+5. The current workflow runs for every non-review push to `main` and for manual dispatch; concurrency cancels older runs for the same ref.
+
+No local tests were run for this review; evidence above is from GitHub Actions.
+
+## Historical status at `49cb21c`
 
 **Review target:** `49cb21c` — `refactor: setup-project architecture, worker-scoped API fixture, tenant capability resolution`
 **Decision:** Changes requested
@@ -18,7 +44,7 @@ This is the durable handoff between the QA reviewer and the implementation agent
 | Visual project | 2 visual tests passed; dashboard KPI snapshot missing a committed baseline |
 | `git diff --check HEAD^ HEAD` | Fails for CRLF text added in this commit under the current Git configuration |
 
-## Open review items
+## Historical open review items (retained for traceability)
 
 ### P0 — Visual snapshot must not capture live tenant data
 
@@ -63,7 +89,15 @@ npx playwright test --project=ui --project=ui-exports --project=ui-login --repor
 npm run test:visual -- --project=ui-visual --reporter=dot
 ```
 
-CI must execute these checks for each implementation commit. The reviewer monitor records the CI run URL/status and exact pass/fail totals; it does not run this suite locally. Record any intentional expected failures in the next review entry.
+The command list above is the reviewer checklist, not the current CI job
+definition. The default workflow currently runs lint/type-check/unit, API, and
+UI jobs; visual, accessibility, security, and performance checks require an
+explicit lane or scheduled workflow.
+
+For each implementation commit, record which of these checks ran in CI and
+which remain scheduled/manual. The reviewer monitor records the CI run
+URL/status and exact pass/fail totals; it does not run this suite locally.
+Record any intentional expected failures in the next review entry.
 
 ## Review history
 

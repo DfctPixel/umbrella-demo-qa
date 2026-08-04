@@ -1,6 +1,15 @@
 # Umbrella FinOps — Exploration Report
 > 2026-07-29T13:13:28.694Z
 
+> **Historical snapshot:** this report records exploratory responses observed
+> on 2026-07-29; its statuses are not a current CI result. The current
+> executable evidence is [CI run 30856889558](https://github.com/DfctPixel/umbrella-demo-qa/actions/runs/30856889558)
+> for `cb93d3c` (133 API, 8 UI, and 10 unit tests passed). Re-run any endpoint
+> before treating a response or field shape as a current product contract. The
+> follow-up CI history also records HTTP 500 behavior for canonical sorted
+> recommendations, cross-domain commitment dashboard, and invalid/reversed
+> anomaly-date requests; those are tracked as expected-failure defects.
+
 ## Dashboard
 - ✅ **Dashboard** → `https://dev.umbrellacost.dev/dashboard`
   - `GET` `https://api.dev.umbrellacost.dev/api/v1/users/plain-sub-users` → 200

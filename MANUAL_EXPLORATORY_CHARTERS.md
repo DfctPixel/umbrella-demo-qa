@@ -1,5 +1,14 @@
 # Manual Exploratory Test Charters
 
+## Current automation context (reviewed 2026-08-04)
+
+The automated web gate at `cb93d3c` is green for 133 API, 8 UI, and 10 unit
+tests, but it does not replace these exploratory sessions. Visual is available
+on demand, while accessibility, responsive, security, performance, mutation,
+and multi-tenant exploration remain release-risk activities. Use the latest
+commit and CI run URL in each session record; do not treat the historical
+exploration report as current execution evidence.
+
 These charters cover the live Umbrella FinOps web application. They are intentionally mission-based rather than scripted: the tester follows the mission, varies data and actions, records observations, and reports defects with evidence. This is session-based exploratory testing as described by the [ISTQB Test Analyst syllabus](https://www.istqb.org/wp-content/uploads/sdm-uploads/ISTQB-CTAL-TA-Syllabus-v4.0-EN-4.pdf).
 
 ## How to run a session
